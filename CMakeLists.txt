@@ -1,0 +1,74 @@
+cmake_minimum_required(VERSION 3.16...3.22)
+
+# ---- Project ----
+
+# Note: update this to your new project's name and version
+project(
+  Learning-Vulkan
+  VERSION 1.0
+  LANGUAGES CXX
+)
+
+# ---- Include guards ----
+
+if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
+  message(
+    FATAL_ERROR
+      "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there."
+  )
+endif()
+
+# ---- Import tools ----
+
+set(USE_CCACHE YES)
+include(cmake/tools.cmake)
+
+# ---- Add dependencies via CPM ----
+# see https://github.com/TheLartians/CPM.cmake for more info
+
+include(cmake/CPM.cmake)
+
+CPMAddPackage(
+  NAME fmt
+  GIT_TAG 9.1.0
+  GITHUB_REPOSITORY fmtlib/fmt
+)
+
+set(GLFW_USE_WAYLAND ON)
+
+CPMAddPackage(
+        NAME GLFW
+        GITHUB_REPOSITORY glfw/glfw
+        GIT_TAG 3.3.2
+        OPTIONS
+          "GLFW_BUILD_TESTS OFF"
+          "GLFW_BUILD_EXAMPLES OFF"
+          "GLFW_BULID_DOCS OFF"
+)
+
+CPMAddPackage("gh:khronosgroup/vulkan-hpp@1.3.240")
+CPMAddPackage("gh:g-truc/glm#0.9.9.8")
+
+# ---- Add source files ----
+
+# Note: globbing sources is considered bad practice as CMake's generators may not detect new files
+# automatically. Keep that in mind when changing files, or explicitly mention them here.
+# file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp")
+file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp")
+
+# ---- Enable libc++ ---- #
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+endif()
+
+# ---- Create executable ----
+
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
+add_executable(${PROJECT_NAME} ${sources})
+
+set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "Learning-Vulkan")
+
+# Link dependencies
+target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt-header-only)
+target_link_libraries(${PROJECT_NAME} PRIVATE vulkan glfw glm)
