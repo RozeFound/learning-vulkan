@@ -19,7 +19,7 @@ namespace logging {
 
         auto create_info = vk::DebugUtilsMessengerCreateInfoEXT {
                 .flags = vk::DebugUtilsMessengerCreateFlagsEXT(),
-                .messageSeverity = eVerbose | eWarning | eError,
+                .messageSeverity = eWarning | eError,
                 .messageType = eGeneral | eValidation | ePerformance,
                 .pfnUserCallback = debug_callback, .pUserData = nullptr
         };

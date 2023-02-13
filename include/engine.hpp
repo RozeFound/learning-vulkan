@@ -11,7 +11,7 @@ class Engine {
     constexpr static bool debug = true;
 
     vk::DebugUtilsMessengerEXT debug_messenger;
-	vk::DispatchLoaderDynamic dldi;
+    vk::DispatchLoaderDynamic dldi;
 
     std::size_t width = 800, height = 600;
     std::string_view title = "Learning Vulkan";
@@ -19,8 +19,13 @@ class Engine {
     GLFWwindow* window;
     vk::Instance instance;
 
-    void create_instance ( );
+    vk::PhysicalDevice physical_device;
+    vk::Device device;
+    vk::Queue graphics_queue;
+
     void create_window ( );
+    void create_instance ( );
+    void create_device ( );
 
 public:
 
