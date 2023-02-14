@@ -15,7 +15,7 @@ namespace logging {
 #endif
 
     enum class level {
-        info, warning, error
+        verbose, info, warning, error
     };
 
     VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT, 
@@ -29,12 +29,14 @@ namespace logging {
 
 #ifdef DEBUG 
 
+#define LOG_VERBOSE(FORMAT_STRING ...) logging::log(fmt::format(FORMAT_STRING), logging::level::verbose);
 #define LOG_INFO(FORMAT_STRING ...) logging::log(fmt::format(FORMAT_STRING), logging::level::info);
 #define LOG_WARNING(FORMAT_STRING ...) logging::log(fmt::format(FORMAT_STRING), logging::level::warning);
 #define LOG_ERROR(FORMAT_STRING ...) logging::log(fmt::format(FORMAT_STRING), logging::level::error);
 
 #else
 
+#define LOG_VERBOSE(FORMAT_STRING ...)
 #define LOG_INFO(FORMAT_STRING ...)
 #define LOG_WARNING(FORMAT_STRING ...)  
 #define LOG_ERROR(FORMAT_STRING ...)

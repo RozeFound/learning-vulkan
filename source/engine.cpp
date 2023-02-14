@@ -1,7 +1,6 @@
-#include <iostream>
-#include <stdexcept>
 #include <vector>
 
+#include "instance.hpp"
 #include "device.hpp"
 #include "engine.hpp"
 #include "logging.hpp"
@@ -23,9 +22,10 @@ Engine::~Engine ( ) {
     if (logging::debug) instance.destroyDebugUtilsMessengerEXT(debug_messenger, nullptr, dldi);
 
     device.destroy();
+
+    instance.destroySurfaceKHR(surface);
     instance.destroy();
 
-    glfwDestroyWindow(window);
     glfwTerminate();
 
 }
@@ -48,9 +48,10 @@ void Engine::make_window ( ) {
 
 void Engine::make_instance ( ) {
 
-    auto version = vk::enumerateInstanceVersion();
 
     if constexpr (logging::debug) {
+
+        auto version = vk::enumerateInstanceVersion();
 
         auto major = VK_API_VERSION_MAJOR(version);
         auto minor = VK_API_VERSION_MINOR(version);
@@ -60,50 +61,11 @@ void Engine::make_instance ( ) {
 
     }
 
-    version &= ~(0xFFFU);
-
-    auto app_info = vk::ApplicationInfo {
-        .pApplicationName = title.data(),
-        .apiVersion = version
-    };
-
-    uint32_t glfw_extension_count = 0;
-    auto glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
-    if (!glfw_extensions) LOG_WARNING("Failed to fetch required GLFW Extensions!");
-
-    auto extensions = std::vector<const char*>(glfw_extensions, glfw_extensions + glfw_extension_count);
-
-    if constexpr (logging::debug) extensions.push_back("VK_EXT_debug_utils");
+    instance = vk::instance::create_instance(title).value_or(nullptr);
 
     if constexpr (logging::debug) {
-        LOG_INFO("Extensions to be requested: ");
-        for (auto& extension : extensions)
-            std::cout << extension << std::endl;
-    }
-
-    auto layers = std::vector<const char*>();
-
-    if (logging::debug) layers.push_back("VK_LAYER_KHRONOS_validation");
-
-    auto create_info = vk::InstanceCreateInfo {
-        .flags = vk::InstanceCreateFlags(),
-        .pApplicationInfo = &app_info,
-        .enabledLayerCount = static_cast<uint32_t>(layers.size()),
-        .ppEnabledLayerNames = layers.data(),
-        .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
-        .ppEnabledExtensionNames = extensions.data()
-    };
-
-    try {
-        instance = vk::createInstance(create_info);
-        
-        if constexpr (logging::debug) {
-            dldi = vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
-            debug_messenger = logging::make_debug_messenger(instance, dldi);
-        }
-        
-    } catch(vk::SystemError err) {
-        LOG_ERROR("Failed to create vk::Instance");
+        dldi = vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
+        debug_messenger = logging::make_debug_messenger(instance, dldi);
     }
 
 }
@@ -111,9 +73,18 @@ void Engine::make_instance ( ) {
 void Engine::make_device ( ) {
 
     physical_device = vk::device::get_physical_device(instance).value_or(nullptr);
-    device = vk::device::create_logical_device(physical_device).value_or(nullptr);
 
-    auto queue_family_index = vk::device::get_graphics_queue_index(physical_device);
-    graphics_queue = device.getQueue(queue_family_index, 0);
+     VkSurfaceKHR c_surface;
+
+    if (glfwCreateWindowSurface(instance, window, nullptr, &c_surface) != VK_SUCCESS)
+        LOG_ERROR("Cannot abstract GLFW surface for Vulkan");
+
+    surface = c_surface;
+
+    device = vk::device::create_logical_device(physical_device, surface).value_or(nullptr);
+
+    auto indices = vk::device::get_family_queue_indices(physical_device, surface);
+    graphics_queue = device.getQueue(indices.graphics_family.value(), 0);
+    present_queue = device.getQueue(indices.present_family.value(), 0);
 
 }

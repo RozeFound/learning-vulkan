@@ -18,10 +18,13 @@ class Engine {
 
     GLFWwindow* window;
     vk::Instance instance;
+    vk::SurfaceKHR surface;
 
     vk::PhysicalDevice physical_device;
     vk::Device device;
+
     vk::Queue graphics_queue;
+    vk::Queue present_queue;
 
     void make_window ( );
     void make_instance ( );
