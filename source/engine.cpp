@@ -2,27 +2,25 @@
 #include <stdexcept>
 #include <vector>
 
-#include <fmt/core.h>
-#include <range/v3/all.hpp>
-
+#include "device.hpp"
 #include "engine.hpp"
 #include "logging.hpp"
 
 Engine::Engine ( ) {
 
-    if (debug) std::cout << "Creating Engine instance..." << std::endl;
+    LOG_INFO("Creating Engine instance...");
 
-    create_window();
-    create_instance();
-    create_device();
+    make_window();
+    make_instance();
+    make_device();
     
 }
 
 Engine::~Engine ( ) {
 
-    if (debug) std::cout << "Destroying Engine..." << std::endl;
+    LOG_INFO("Destroying Engine...");
 
-    if (debug) instance.destroyDebugUtilsMessengerEXT(debug_messenger, nullptr, dldi);
+    if (logging::debug) instance.destroyDebugUtilsMessengerEXT(debug_messenger, nullptr, dldi);
 
     device.destroy();
     instance.destroy();
@@ -32,9 +30,9 @@ Engine::~Engine ( ) {
 
 }
 
-void Engine::create_window ( ) {
+void Engine::make_window ( ) {
 
-    if (debug) std::cout << "Creating window..." << std::endl;
+    LOG_INFO("Creating window...");
 
     glfwInit();
 
@@ -43,24 +41,23 @@ void Engine::create_window ( ) {
 
     window = glfwCreateWindow(width, height, title.data(), nullptr, nullptr);
 
-    if (debug) {
-        if (window) std::cout << "Successfully created " << title << " window." << std::endl;
-        else std::cerr << "Failed to create " << title << " window." << std::endl;
-    }
+    if (window) {LOG_INFO("Successfully created {} window.", title);}
+    else LOG_ERROR("Failed to create {} window.", title);
 
 }
 
-void Engine::create_instance ( ) {
+void Engine::make_instance ( ) {
 
     auto version = vk::enumerateInstanceVersion();
 
-    if (debug) {
+    if constexpr (logging::debug) {
+
         auto major = VK_API_VERSION_MAJOR(version);
         auto minor = VK_API_VERSION_MINOR(version);
         auto patch = VK_API_VERSION_PATCH(version);
 
-        auto str_version = fmt::format("{}.{}.{}", major, minor, patch);
-        std::cout << "System support up to Vulkan " << str_version << std::endl;
+        LOG_INFO("System support up to Vulkan {}.{}.{}", major, minor, patch);
+
     }
 
     version &= ~(0xFFFU);
@@ -72,21 +69,21 @@ void Engine::create_instance ( ) {
 
     uint32_t glfw_extension_count = 0;
     auto glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
-    if (!glfw_extensions && debug) std::cerr << "Failed to fetch required GLFW Extensions!" << std::endl;
+    if (!glfw_extensions) LOG_WARNING("Failed to fetch required GLFW Extensions!");
 
     auto extensions = std::vector<const char*>(glfw_extensions, glfw_extensions + glfw_extension_count);
 
-    if (debug) extensions.push_back("VK_EXT_debug_utils");
+    if constexpr (logging::debug) extensions.push_back("VK_EXT_debug_utils");
 
-    if (debug) {
-        std::cout << "Extensions to be requested: " << std::endl;
-        for (auto extension : extensions)
-            std::cout << extension << std::endl; 
+    if constexpr (logging::debug) {
+        LOG_INFO("Extensions to be requested: ");
+        for (auto& extension : extensions)
+            std::cout << extension << std::endl;
     }
 
     auto layers = std::vector<const char*>();
 
-    if (debug) layers.push_back("VK_LAYER_KHRONOS_validation");
+    if (logging::debug) layers.push_back("VK_LAYER_KHRONOS_validation");
 
     auto create_info = vk::InstanceCreateInfo {
         .flags = vk::InstanceCreateFlags(),
@@ -99,81 +96,24 @@ void Engine::create_instance ( ) {
 
     try {
         instance = vk::createInstance(create_info);
-        dldi = vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
-        debug_messenger = logging::make_debug_messenger(instance, dldi);
+        
+        if constexpr (logging::debug) {
+            dldi = vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
+            debug_messenger = logging::make_debug_messenger(instance, dldi);
+        }
+        
     } catch(vk::SystemError err) {
-        std::cerr << "Failed to create vk::Instance" << std::endl;
+        LOG_ERROR("Failed to create vk::Instance");
     }
 
 }
 
-void Engine::create_device ( ) {
+void Engine::make_device ( ) {
 
-    auto suitable = [](vk::PhysicalDevice& device){
+    physical_device = vk::device::get_physical_device(instance).value_or(nullptr);
+    device = vk::device::create_logical_device(physical_device).value_or(nullptr);
 
-        for (auto& extension_properies : device.enumerateDeviceExtensionProperties()) {
-
-            if (std::strcmp(extension_properies.extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME))
-                continue;
-            
-            return true;
-        }  
-        return false;
-
-    };
-
-    auto devices = instance.enumeratePhysicalDevices();
-
-    for (auto& device : devices | ranges::views::filter(suitable)) {
-
-        if (debug) {
-            auto device_properties = device.getProperties();
-            std::cout << "Device Name: " << device_properties.deviceName << std::endl;
-        }
-
-        physical_device = device;
-        break;
-
-    }
-
-    auto queue_family_properties = physical_device.getQueueFamilyProperties();
-    auto queue_piority = 1.f; uint32_t queue_family_index = 0;
-
-    for (std::size_t i = 0; i < queue_family_properties.size(); i++)
-        if (queue_family_properties.at(i).queueFlags & vk::QueueFlagBits::eGraphics) {
-            queue_family_index = i; break;
-        }
-
-    auto queue_info = vk::DeviceQueueCreateInfo {
-        .flags = vk::DeviceQueueCreateFlags(),
-        .queueFamilyIndex = queue_family_index, // TODO 
-        .queueCount = 1,
-        .pQueuePriorities = &queue_piority
-    };
-
-    auto device_features = vk::PhysicalDeviceFeatures();
-
-    auto layers = std::vector<const char*>();
-
-    if (debug) layers.push_back("VK_LAYER_KHRONOS_validation");
-
-    auto device_info = vk::DeviceCreateInfo {
-        .flags = vk::DeviceCreateFlags(),
-        .queueCreateInfoCount = 1,
-        .pQueueCreateInfos = &queue_info,
-        .enabledLayerCount = static_cast<uint32_t>(layers.size()),
-        .ppEnabledLayerNames = layers.data(),
-        .enabledExtensionCount = 0,
-        .ppEnabledExtensionNames = nullptr,
-        .pEnabledFeatures = &device_features
-    };
-
-    try {
-        device = physical_device.createDevice(device_info);
-        if (debug) std::cout << "Device was successfully abstracted." << std::endl;
-        graphics_queue = device.getQueue(queue_family_index, 0);
-    } catch (vk::SystemError err) {
-        std::cerr << "Failed to abstract device." << std::endl;
-    }
+    auto queue_family_index = vk::device::get_graphics_queue_index(physical_device);
+    graphics_queue = device.getQueue(queue_family_index, 0);
 
 }

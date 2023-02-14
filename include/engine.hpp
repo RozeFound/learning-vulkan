@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cstddef>
 #include <string_view>
 
@@ -7,8 +9,6 @@
 #include <vulkan/vulkan.hpp>
 
 class Engine {
-
-    constexpr static bool debug = true;
 
     vk::DebugUtilsMessengerEXT debug_messenger;
     vk::DispatchLoaderDynamic dldi;
@@ -23,9 +23,9 @@ class Engine {
     vk::Device device;
     vk::Queue graphics_queue;
 
-    void create_window ( );
-    void create_instance ( );
-    void create_device ( );
+    void make_window ( );
+    void make_instance ( );
+    void make_device ( );
 
 public:
 

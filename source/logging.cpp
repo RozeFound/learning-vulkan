@@ -28,4 +28,14 @@ namespace logging {
 
     }
 
+    void log (std::string_view message, level level) {
+
+        switch (level) {
+            case (level::info): std::cout << "Info: " << message << std::endl; break;
+            case (level::warning): std::cout << "Warning: " << message << std::endl; break;
+            case (level::error): std::cerr << "Error: " << message << std::endl; break;
+        }
+
+    }
+
 }
