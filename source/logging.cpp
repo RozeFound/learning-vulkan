@@ -30,6 +30,8 @@ namespace logging {
 
     void log (std::string_view message, level level) {
 
+        if (default_debug_level > level) return; 
+
         switch (level) {
             case (level::verbose): std::cout << message << std::endl; break;
             case (level::info): std::cout << "Info: " << message << std::endl; break;

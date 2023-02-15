@@ -16,7 +16,7 @@ namespace vk::device {
     auto get_device_properties (vk::PhysicalDevice& device);
 
     std::optional<vk::PhysicalDevice> get_physical_device (vk::Instance& instance);
-    QueueFamilyIndices get_family_queue_indices (vk::PhysicalDevice& device, vk::SurfaceKHR& surface);
+    QueueFamilyIndices get_queue_family_indices (vk::PhysicalDevice& device, vk::SurfaceKHR& surface);
 
     std::optional<vk::Device> create_logical_device (vk::PhysicalDevice& device, vk::SurfaceKHR& surface);
 

@@ -74,7 +74,7 @@ namespace vk::device {
 
     }
 
-    QueueFamilyIndices get_family_queue_indices (vk::PhysicalDevice& device, vk::SurfaceKHR& surface) {
+    QueueFamilyIndices get_queue_family_indices (vk::PhysicalDevice& device, vk::SurfaceKHR& surface) {
 
         QueueFamilyIndices indices;
         auto queue_family_properties = device.getQueueFamilyProperties();
@@ -95,7 +95,7 @@ namespace vk::device {
 
     std::optional<vk::Device> create_logical_device (vk::PhysicalDevice& device, vk::SurfaceKHR& surface) {
 
-        auto indices = vk::device::get_family_queue_indices(device, surface);
+        auto indices = vk::device::get_queue_family_indices(device, surface);
 
         auto queue_info = std::vector<vk::DeviceQueueCreateInfo>();
         auto queue_piority = 1.f;
@@ -109,7 +109,7 @@ namespace vk::device {
 
         queue_info.push_back(graphics_queue_info);
 
-        if (indices.graphics_family.value() != indices.present_family.value()) {
+        if (indices.graphics_family != indices.present_family) {
 
             auto present_queue_info = vk::DeviceQueueCreateInfo {
                 .flags = vk::DeviceQueueCreateFlags(),
@@ -123,9 +123,11 @@ namespace vk::device {
 
         auto device_features = vk::PhysicalDeviceFeatures();
 
+        auto extensions = std::vector<const char*>{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+
         auto layers = std::vector<const char*>();
 
-        if (logging::debug) layers.push_back("VK_LAYER_KHRONOS_validation");
+        if constexpr (logging::debug) layers.push_back("VK_LAYER_KHRONOS_validation");
 
         auto device_info = vk::DeviceCreateInfo {
             .flags = vk::DeviceCreateFlags(),
@@ -133,14 +135,15 @@ namespace vk::device {
             .pQueueCreateInfos = queue_info.data(),
             .enabledLayerCount = static_cast<uint32_t>(layers.size()),
             .ppEnabledLayerNames = layers.data(),
-            .enabledExtensionCount = 0,
-            .ppEnabledExtensionNames = nullptr,
+            .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+            .ppEnabledExtensionNames = extensions.data(),
             .pEnabledFeatures = &device_features
         };
 
         try {
-            return device.createDevice(device_info);
+            auto result = device.createDevice(device_info);
             LOG_INFO("Device was successfully abstracted.");
+            return result;
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to abstract Physical Device");
             return std::nullopt;

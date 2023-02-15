@@ -60,10 +60,12 @@ namespace vk::instance {
         };
 
         try {
-            return vk::createInstance(create_info);
+            auto result = vk::createInstance(create_info);
+            LOG_INFO("Successfully created Instance");
+            return result;
             
         } catch(vk::SystemError err) {
-            LOG_ERROR("Failed to create vk::Instance");
+            LOG_ERROR("Failed to create Instance");
             return std::nullopt;
         }
 

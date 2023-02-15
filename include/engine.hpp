@@ -23,12 +23,14 @@ class Engine {
     vk::PhysicalDevice physical_device;
     vk::Device device;
 
+    vk::SwapchainKHR swapchain;
     vk::Queue graphics_queue;
     vk::Queue present_queue;
 
     void make_window ( );
     void make_instance ( );
     void make_device ( );
+    void make_swapchain ( );
 
 public:
 

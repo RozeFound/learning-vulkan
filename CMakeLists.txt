@@ -34,19 +34,6 @@ CPMAddPackage(
   GITHUB_REPOSITORY fmtlib/fmt
 )
 
-# CPMAddPackage(
-#   NAME range-v3
-#   URL https://github.com/ericniebler/range-v3/archive/0.12.0.zip
-#   VERSION 0.12.0
-#   # the range-v3 CMakeLists screws with configuration options
-#   DOWNLOAD_ONLY True
-# )
-
-# if(range-v3_ADDED) 
-#   add_library(range-v3 INTERFACE IMPORTED)
-#   target_include_directories(range-v3 INTERFACE "${range-v3_SOURCE_DIR}/include")
-# endif()
-
 set(GLFW_USE_WAYLAND ON)
 
 CPMAddPackage(
@@ -84,5 +71,4 @@ set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "Le
 
 # Link dependencies
 target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt-header-only)
-# target_link_libraries(${PROJECT_NAME} PRIVATE range-v3)
 target_link_libraries(${PROJECT_NAME} PRIVATE vulkan glfw glm)

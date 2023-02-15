@@ -18,6 +18,8 @@ namespace logging {
         verbose, info, warning, error
     };
 
+    constexpr auto default_debug_level = level::info;
+
     VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT, 
         VkDebugUtilsMessageTypeFlagsEXT, const VkDebugUtilsMessengerCallbackDataEXT*,void*);
 
