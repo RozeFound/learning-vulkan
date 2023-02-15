@@ -1,7 +1,6 @@
 #include <string>
 #include <utility>
-
-#include <range/v3/all.hpp>
+#include <ranges>
 
 #include "device.hpp"
 #include "logging.hpp"
@@ -54,7 +53,7 @@ namespace vk::device {
 
         auto devices = instance.enumeratePhysicalDevices();
 
-        for (auto& device : devices | ranges::views::filter(suitable)) {
+        for (auto& device : devices | std::views::filter(suitable)) {
 
             if constexpr (logging::debug) {
 
