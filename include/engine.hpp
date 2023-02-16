@@ -8,33 +8,42 @@
 #define VULKAN_HPP_NO_CONSTRUCTORS
 #include <vulkan/vulkan.hpp>
 
-class Engine {
+namespace engine {
 
-    vk::DebugUtilsMessengerEXT debug_messenger;
-    vk::DispatchLoaderDynamic dldi;
+    class Engine {
 
-    std::size_t width = 800, height = 600;
-    std::string_view title = "Learning Vulkan";
+        vk::DebugUtilsMessengerEXT debug_messenger;
+        vk::DispatchLoaderDynamic dldi;
 
-    GLFWwindow* window;
-    vk::Instance instance;
-    vk::SurfaceKHR surface;
+        std::size_t width = 800, height = 600;
+        std::string_view title = "Learning Vulkan";
 
-    vk::PhysicalDevice physical_device;
-    vk::Device device;
+        GLFWwindow* window;
+        vk::Instance instance;
+        vk::SurfaceKHR surface;
 
-    vk::SwapchainKHR swapchain;
-    vk::Queue graphics_queue;
-    vk::Queue present_queue;
+        vk::PhysicalDevice physical_device;
+        vk::Device device;
 
-    void make_window ( );
-    void make_instance ( );
-    void make_device ( );
-    void make_swapchain ( );
+        vk::SwapchainKHR swapchain;
+        vk::Queue graphics_queue;
+        vk::Queue present_queue;
 
-public:
+        void make_window ( );
+        void make_instance ( );
+        void make_device ( );
+        void make_swapchain ( );
 
-    Engine();
-    ~Engine();
+    public:
 
-};
+        Engine();
+        ~Engine();
+
+        auto get_dimensions ( ) const { return std::pair(width, height); };
+        auto get_instance ( ) const { return instance; };
+        auto get_devices ( ) const { return std::pair(physical_device, device); } ;
+        auto get_surface ( ) const { return surface; };
+
+    };
+
+}

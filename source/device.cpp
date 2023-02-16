@@ -5,7 +5,7 @@
 #include "device.hpp"
 #include "logging.hpp"
 
-namespace vk::device {
+namespace engine {
 
     void log_device_properties (vk::PhysicalDevice& device) {
 
@@ -55,7 +55,7 @@ namespace vk::device {
 
         for (auto& device : devices | std::views::filter(suitable)) {
 
-            if constexpr (logging::debug) {
+            if constexpr (debug) {
 
                 auto[name, type] = get_device_properties(device);
 
@@ -95,7 +95,7 @@ namespace vk::device {
 
     std::optional<vk::Device> create_logical_device (vk::PhysicalDevice& device, vk::SurfaceKHR& surface) {
 
-        auto indices = vk::device::get_queue_family_indices(device, surface);
+        auto indices = get_queue_family_indices(device, surface);
 
         auto queue_info = std::vector<vk::DeviceQueueCreateInfo>();
         auto queue_piority = 1.f;
@@ -127,7 +127,7 @@ namespace vk::device {
 
         auto layers = std::vector<const char*>();
 
-        if constexpr (logging::debug) layers.push_back("VK_LAYER_KHRONOS_validation");
+        if constexpr (debug) layers.push_back("VK_LAYER_KHRONOS_validation");
 
         auto device_info = vk::DeviceCreateInfo {
             .flags = vk::DeviceCreateFlags(),

@@ -3,7 +3,7 @@
 #include "instance.hpp"
 #include "logging.hpp"
 
-namespace vk::instance {
+namespace engine {
 
     void log_supported_features ( ) {
 
@@ -36,7 +36,7 @@ namespace vk::instance {
         auto layers = std::vector<const char*>();
 
 
-        if constexpr (logging::debug) {
+        if constexpr (debug) {
 
             extensions.push_back("VK_EXT_debug_utils");
 

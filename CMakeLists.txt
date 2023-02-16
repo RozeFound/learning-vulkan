@@ -69,6 +69,9 @@ add_executable(${PROJECT_NAME} ${sources})
 target_compile_definitions(${PROJECT_NAME} PUBLIC "$<$<CONFIG:DEBUG>:DEBUG>")
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "Learning-Vulkan")
 
+# Enable shader comilation
+include(cmake/shaders.cmake)
+
 # Link dependencies
 target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt-header-only)
 target_link_libraries(${PROJECT_NAME} PRIVATE vulkan glfw glm)

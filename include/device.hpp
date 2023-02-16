@@ -5,7 +5,7 @@
 #define VULKAN_HPP_NO_CONSTRUCTORS
 #include <vulkan/vulkan.hpp>
 
-namespace vk::device {
+namespace engine {
 
     struct QueueFamilyIndices {
 		std::optional<uint32_t> graphics_family;

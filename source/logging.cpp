@@ -2,7 +2,7 @@
 
 #include "logging.hpp"
 
-namespace logging {
+namespace engine {
 
     VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT, 
         VkDebugUtilsMessageTypeFlagsEXT, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,void*) {
@@ -28,15 +28,15 @@ namespace logging {
 
     }
 
-    void log (std::string_view message, level level) {
+    void log (std::string_view message, log_level level) {
 
         if (default_debug_level > level) return; 
 
         switch (level) {
-            case (level::verbose): std::cout << message << std::endl; break;
-            case (level::info): std::cout << "Info: " << message << std::endl; break;
-            case (level::warning): std::cout << "Warning: " << message << std::endl; break;
-            case (level::error): std::cerr << "Error: " << message << std::endl; break;
+            case (log_level::verbose): std::cout << message << std::endl; break;
+            case (log_level::info): std::cout << "Info: " << message << std::endl; break;
+            case (log_level::warning): std::cout << "Warning: " << message << std::endl; break;
+            case (log_level::error): std::cerr << "Error: " << message << std::endl; break;
         }
 
     }

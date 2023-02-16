@@ -4,7 +4,7 @@
 
 auto main (int argc, char** argv) -> int {
 
-    auto engine = std::make_unique<Engine>();
+    auto engine = std::make_unique<engine::Engine>();
 
     return 0;
 }
