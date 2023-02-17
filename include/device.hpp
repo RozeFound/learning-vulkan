@@ -12,7 +12,6 @@ namespace engine {
 		std::optional<uint32_t> present_family;
 	};
 
-    void log_device_properties (vk::PhysicalDevice& device);
     auto get_device_properties (vk::PhysicalDevice& device);
 
     std::optional<vk::PhysicalDevice> get_physical_device (vk::Instance& instance);

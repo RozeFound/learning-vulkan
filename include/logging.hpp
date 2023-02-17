@@ -5,7 +5,6 @@
 
 #include <fmt/core.h>
 
-
 namespace engine {
 
 #ifdef DEBUG 

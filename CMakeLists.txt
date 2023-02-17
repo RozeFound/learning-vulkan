@@ -67,6 +67,7 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
 add_executable(${PROJECT_NAME} ${sources})
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC "$<$<CONFIG:DEBUG>:DEBUG>")
+target_compile_definitions(${PROJECT_NAME} PUBLIC "$<$<CONFIG:RELWITHDEBINFO>:DEBUG>")
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "Learning-Vulkan")
 
 # Enable shader comilation

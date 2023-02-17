@@ -1,21 +1,12 @@
 #include <string>
 #include <utility>
 #include <ranges>
+#include <set>
 
 #include "device.hpp"
 #include "logging.hpp"
 
 namespace engine {
-
-    void log_device_properties (vk::PhysicalDevice& device) {
-
-        auto extensions = device.enumerateDeviceExtensionProperties();
-
-        LOG_VERBOSE("Device can support extensions: ");
-        for (auto& extension : extensions)
-            LOG_VERBOSE("\t{}", extension.extensionName);
-
-    }
 
     auto get_device_properties (vk::PhysicalDevice& device) {
 
@@ -62,7 +53,11 @@ namespace engine {
                 LOG_INFO("Device Name: {}", name);
                 LOG_INFO("Device Type: {}", type);
 
-                log_device_properties(device);
+                auto extensions = device.enumerateDeviceExtensionProperties();
+
+                LOG_VERBOSE("Device can support extensions: ");
+                for (auto& extension : extensions)
+                    LOG_VERBOSE("\t{}", extension.extensionName);
             }
 
             return device;
@@ -100,25 +95,17 @@ namespace engine {
         auto queue_info = std::vector<vk::DeviceQueueCreateInfo>();
         auto queue_piority = 1.f;
 
-        auto graphics_queue_info = vk::DeviceQueueCreateInfo {
-            .flags = vk::DeviceQueueCreateFlags(),
-            .queueFamilyIndex = indices.graphics_family.value(),
-            .queueCount = 1,
-            .pQueuePriorities = &queue_piority
-        };
+        auto unique_indices = std::set<uint32_t>{indices.graphics_family.value(), indices.present_family.value()};
 
-        queue_info.push_back(graphics_queue_info);
+        for (const auto& queue_family : unique_indices) {
 
-        if (indices.graphics_family != indices.present_family) {
-
-            auto present_queue_info = vk::DeviceQueueCreateInfo {
+            auto create_info = vk::DeviceQueueCreateInfo {
                 .flags = vk::DeviceQueueCreateFlags(),
-                .queueFamilyIndex = indices.present_family.value(),
+                .queueFamilyIndex = queue_family,
                 .queueCount = 1,
                 .pQueuePriorities = &queue_piority
-            };
+            }; queue_info.push_back(create_info);
 
-            queue_info.push_back(present_queue_info);
         }
 
         auto device_features = vk::PhysicalDeviceFeatures();

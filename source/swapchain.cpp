@@ -1,40 +1,34 @@
-#include "swapchain.hpp"
 #include <cstddef>
+#include <limits>
+
 #include "device.hpp"
+#include "swapchain.hpp"
+#include "logging.hpp"
 
 namespace engine {
 
-    std::optional<vk::SwapchainKHR> create_swapchain(engine::Engine& engine) {
+    SwapChain::SwapChain (vk::PhysicalDevice& physical_device, vk::Device& device, vk::SurfaceKHR& surface, GLFWwindow* window) 
+        : physical_device(physical_device), device(device), surface(surface), window(window) {
 
-        auto[physical_device, device] = engine.get_devices();
-        auto surface = engine.get_surface();
-        auto[width, height] = engine.get_dimensions(); 
+        query_swapchain_info();
 
-        auto capabilities = physical_device.getSurfaceCapabilitiesKHR(surface);
-        auto formats = physical_device.getSurfaceFormatsKHR(surface);
         auto modes = physical_device.getSurfacePresentModesKHR(surface);
+        auto format = get_format();
 
         auto present_mode = vk::PresentModeKHR::eFifo;
 
         for (auto& mode : modes) 
-            if (mode == vk::PresentModeKHR::eMailbox) {
-                present_mode = mode; break; }
+            if (mode == vk::PresentModeKHR::eMailbox)
+                { present_mode = mode; break; }
 
-        auto min_width = std::max(capabilities.minImageExtent.width, static_cast<uint32_t>(width));
-        auto min_height = std::max(capabilities.minImageExtent.height, static_cast<uint32_t>(height));
-
-        auto extent = vk::Extent2D { 
-            .width = std::min(min_width, capabilities.maxImageExtent.width),
-            .height = std::min(min_height, capabilities.maxImageExtent.height)
-        };
 
         auto create_info = vk::SwapchainCreateInfoKHR {
             .flags = vk::SwapchainCreateFlagsKHR(),
             .surface = surface, 
             .minImageCount = capabilities.minImageCount,
-            .imageFormat = formats.at(0).format,
-            .imageColorSpace = formats.at(0).colorSpace,
-            .imageExtent = extent,
+            .imageFormat = format.format,
+            .imageColorSpace = format.colorSpace,
+            .imageExtent = get_extent( ),
             .imageArrayLayers = 1,
             .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
             // We'll set sharing mode and queue indices below //
@@ -54,13 +48,80 @@ namespace engine {
         } else create_info.imageSharingMode = vk::SharingMode::eExclusive;
 
         try {
-            auto result = device.createSwapchainKHR(create_info);
+            handle = device.createSwapchainKHR(create_info);
             LOG_INFO("Successfully created SwapChain");
-            return result;
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to create SwapChain");
-            return std::nullopt;
         }
+
+        make_frames();
+
+    }
+
+    void SwapChain::destroy ( ) {
+
+        for (const auto& frame : frames)
+            device.destroyImageView(frame.view);
+
+        device.destroySwapchainKHR(handle);
+
+    }
+
+    void SwapChain::query_swapchain_info ( ) {
+
+        capabilities = physical_device.getSurfaceCapabilitiesKHR(surface);
+        auto formats =  physical_device.getSurfaceFormatsKHR(surface);
+
+        for (const auto& format : formats)
+			if (format.format == vk::Format::eB8G8R8A8Unorm&& format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
+				{ this->format = format; break; } else this->format = formats.at(0);
+
+        if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) 
+            extent = capabilities.currentExtent;
+        else {
+            int width, height;
+            glfwGetFramebufferSize(window, &width, &height);
+
+            auto min_width = std::max(capabilities.minImageExtent.width, static_cast<uint32_t>(width));
+            auto min_height = std::max(capabilities.minImageExtent.height, static_cast<uint32_t>(height));
+
+            extent = vk::Extent2D { 
+                .width = std::min(min_width, capabilities.maxImageExtent.width),
+                .height = std::min(min_height, capabilities.maxImageExtent.height)
+            };
+        }
+
+    }
+
+    void SwapChain::make_frames ( ) {
+
+        auto images = device.getSwapchainImagesKHR(handle);
+        frames.resize(images.size());
+
+        for (size_t i = 0; i < images.size(); i++) {
+
+            auto subres_range = vk::ImageSubresourceRange {
+                .aspectMask = vk::ImageAspectFlagBits::eColor,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            };
+
+			auto create_info = vk::ImageViewCreateInfo {
+                .flags = vk::ImageViewCreateFlags(),
+                .image = images[i],
+                .viewType = vk::ImageViewType::e2D,
+                .format = format.format,
+                .components = vk::ComponentMapping(),
+                .subresourceRange = subres_range
+            };
+
+			frames[i].image = images[i];
+			frames[i].view = device.createImageView(create_info);
+		};
+
+        LOG_INFO("Created ImageView's for swapchain");
 
     }
 

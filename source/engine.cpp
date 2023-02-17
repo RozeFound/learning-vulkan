@@ -15,7 +15,6 @@ namespace engine {
         make_window();
         make_instance();
         make_device();
-        make_swapchain();
         
     }
 
@@ -25,7 +24,7 @@ namespace engine {
 
         if (debug) instance.destroyDebugUtilsMessengerEXT(debug_messenger, nullptr, dldi);
 
-        device.destroySwapchainKHR(swapchain);
+        swapchain.destroy();
         device.destroy();
 
         instance.destroySurfaceKHR(surface);
@@ -73,12 +72,6 @@ namespace engine {
             debug_messenger = make_debug_messenger(instance, dldi);
         }
 
-    }
-
-    void Engine::make_device ( ) {
-
-        physical_device = get_physical_device(instance).value_or(nullptr);
-
         VkSurfaceKHR c_surface;
 
         if (glfwCreateWindowSurface(instance, window, nullptr, &c_surface) != VK_SUCCESS)
@@ -86,17 +79,18 @@ namespace engine {
 
         surface = c_surface;
 
+    }
+
+    void Engine::make_device ( ) {
+
+        physical_device = get_physical_device(instance).value_or(nullptr);
         device = create_logical_device(physical_device, surface).value_or(nullptr);
 
         auto indices = get_queue_family_indices(physical_device, surface);
         graphics_queue = device.getQueue(indices.graphics_family.value(), 0);
         present_queue = device.getQueue(indices.present_family.value(), 0);
 
-    }
-
-    void Engine::make_swapchain ( ) {
-
-        swapchain = create_swapchain(*this).value_or(nullptr);
+        swapchain = SwapChain(physical_device, device, surface, window);
 
     }
 

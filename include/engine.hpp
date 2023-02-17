@@ -8,6 +8,8 @@
 #define VULKAN_HPP_NO_CONSTRUCTORS
 #include <vulkan/vulkan.hpp>
 
+#include "swapchain.hpp"
+
 namespace engine {
 
     class Engine {
@@ -25,7 +27,7 @@ namespace engine {
         vk::PhysicalDevice physical_device;
         vk::Device device;
 
-        vk::SwapchainKHR swapchain;
+        SwapChain swapchain;
         vk::Queue graphics_queue;
         vk::Queue present_queue;
 
@@ -39,10 +41,10 @@ namespace engine {
         Engine();
         ~Engine();
 
-        auto get_dimensions ( ) const { return std::pair(width, height); };
-        auto get_instance ( ) const { return instance; };
-        auto get_devices ( ) const { return std::pair(physical_device, device); } ;
-        auto get_surface ( ) const { return surface; };
+        constexpr auto get_window ( ) const { return window; };
+        constexpr auto get_instance ( ) const { return instance; };
+        constexpr auto get_devices ( ) const { return std::pair(physical_device, device); } ;
+        constexpr auto get_surface ( ) const { return surface; };
 
     };
 
