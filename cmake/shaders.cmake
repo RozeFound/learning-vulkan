@@ -1,4 +1,4 @@
-file(GLOB_RECURSE GLSL_SOURCE_FILES "shaders/*.frag" "shaders/*.vert")
+file(GLOB_RECURSE GLSL_SOURCE_FILES CONFIGURE_DEPENDS "shaders/*.frag" "shaders/*.vert")
 
 foreach(GLSL ${GLSL_SOURCE_FILES})
   get_filename_component(FILE_NAME ${GLSL} NAME)

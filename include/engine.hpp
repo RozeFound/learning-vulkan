@@ -9,6 +9,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include "swapchain.hpp"
+#include "pipeline.hpp"
 
 namespace engine {
 
@@ -28,13 +29,13 @@ namespace engine {
         vk::Device device;
 
         SwapChain swapchain;
+        PipeLine pipeline;
         vk::Queue graphics_queue;
         vk::Queue present_queue;
 
         void make_window ( );
         void make_instance ( );
         void make_device ( );
-        void make_swapchain ( );
 
     public:
 

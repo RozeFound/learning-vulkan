@@ -24,7 +24,7 @@ namespace engine {
 
         public:
 
-        Shader (vk::Device& device, std::filesystem::path vertex, std::filesystem::path fragment); 
+        Shader (vk::Device& device, std::filesystem::path path); 
 
         std::vector<vk::PipelineShaderStageCreateInfo> get_stage_info ( );
 

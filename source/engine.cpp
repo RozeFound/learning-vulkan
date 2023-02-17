@@ -3,6 +3,7 @@
 #include "instance.hpp"
 #include "device.hpp"
 #include "engine.hpp"
+#include "pipeline.hpp"
 #include "swapchain.hpp"
 #include "logging.hpp"
 
@@ -24,6 +25,7 @@ namespace engine {
 
         if (debug) instance.destroyDebugUtilsMessengerEXT(debug_messenger, nullptr, dldi);
 
+        pipeline.destroy();
         swapchain.destroy();
         device.destroy();
 
@@ -91,6 +93,7 @@ namespace engine {
         present_queue = device.getQueue(indices.present_family.value(), 0);
 
         swapchain = SwapChain(physical_device, device, surface, window);
+        pipeline = PipeLine(device, swapchain);
 
     }
 

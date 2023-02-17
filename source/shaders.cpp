@@ -6,13 +6,16 @@
 
 namespace engine {
 
-    Shader::Shader (vk::Device& device, std::filesystem::path vertex, std::filesystem::path fragment)
+    Shader::Shader (vk::Device& device, std::filesystem::path path)
         : device(device) {
 
         LOG_INFO("Creating Shader...");
 
-        vertex_module = create_module(read(vertex));
-        fragment_module = create_module(read(fragment));
+        auto vertex_path = path.string() + ".vert.spv";
+        auto fragment_path = path.string() + ".frag.spv";
+
+        vertex_module = create_module(read(vertex_path));
+        fragment_module = create_module(read(fragment_path));
 
         vertex_stage = vk::PipelineShaderStageCreateInfo {
             .flags = vk::PipelineShaderStageCreateFlags(),
@@ -44,7 +47,14 @@ namespace engine {
                 .pCode = reinterpret_cast<const uint32_t*>(code.data())
             };
 
-        return device.createShaderModule(create_info);
+        try {
+            auto result = device.createShaderModule(create_info);
+            LOG_INFO("Successfully created shader module");
+            return result;
+        } catch (vk::SystemError err) {
+            LOG_WARNING("Failed to create shader module");
+            return nullptr;
+        };
 
     }
 
