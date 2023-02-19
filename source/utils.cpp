@@ -22,7 +22,7 @@ namespace engine {
 
     }
 
-    std::optional<vk::Semaphore> make_semaphore (vk::Device& device) {
+    vk::Semaphore make_semaphore (vk::Device& device) {
 
         auto create_info = vk::SemaphoreCreateInfo {
             .flags = vk::SemaphoreCreateFlags()
@@ -32,12 +32,12 @@ namespace engine {
             return device.createSemaphore(create_info);
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to create Semaphore");
-            return std::nullopt;
+            return nullptr;
         }
 
     }
 
-    std::optional<vk::Fence> make_fence (vk::Device& device) {
+    vk::Fence make_fence (vk::Device& device) {
 
         auto create_info = vk::FenceCreateInfo {
             .flags = vk::FenceCreateFlagBits::eSignaled
@@ -47,7 +47,7 @@ namespace engine {
             return device.createFence(create_info);
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to create Fence");
-            return std::nullopt;
+            return nullptr;
         }
 
     }

@@ -21,7 +21,7 @@ namespace engine {
 
     }
 
-    std::optional<vk::Instance> create_instance ( ) {
+    vk::Instance create_instance ( ) {
 
         auto app_info = vk::ApplicationInfo {
             .apiVersion = VK_VERSION_1_3
@@ -65,7 +65,7 @@ namespace engine {
             
         } catch(vk::SystemError err) {
             LOG_ERROR("Failed to create Instance");
-            return std::nullopt;
+            return nullptr;
         }
 
     }

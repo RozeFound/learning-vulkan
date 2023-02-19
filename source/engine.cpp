@@ -20,9 +20,9 @@ namespace engine {
         make_command_pool();
         make_commandbuffer();
 
-        image_available = make_semaphore(device).value_or(nullptr);
-        render_finished = make_semaphore(device).value_or(nullptr);
-        in_flight = make_fence(device).value_or(nullptr);
+        image_available = make_semaphore(device);
+        render_finished = make_semaphore(device);
+        in_flight = make_fence(device);
         
     }
 
@@ -68,7 +68,7 @@ namespace engine {
 
         }
 
-        instance = create_instance().value_or(nullptr);
+        instance = create_instance();
 
         if constexpr (debug) {
             dldi = vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
@@ -86,8 +86,8 @@ namespace engine {
 
     void Engine::make_device ( ) {
 
-        physical_device = get_physical_device(instance).value_or(nullptr);
-        device = create_logical_device(physical_device, surface).value_or(nullptr);
+        physical_device = get_physical_device(instance);
+        device = create_logical_device(physical_device, surface);
 
         auto indices = get_queue_family_indices(physical_device, surface);
         graphics_queue = device.getQueue(indices.graphics_family.value(), 0);

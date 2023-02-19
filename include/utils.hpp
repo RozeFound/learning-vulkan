@@ -14,7 +14,7 @@ namespace engine {
 
     QueueFamilyIndices get_queue_family_indices (vk::PhysicalDevice& device, vk::SurfaceKHR& surface);
 
-    std::optional<vk::Semaphore> make_semaphore (vk::Device& device);
-    std::optional<vk::Fence> make_fence (vk::Device& device);
+    vk::Semaphore make_semaphore (vk::Device& device);
+    vk::Fence make_fence (vk::Device& device);
 
 }

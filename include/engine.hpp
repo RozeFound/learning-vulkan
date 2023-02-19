@@ -1,8 +1,5 @@
 #pragma once
 
-#include <cstddef>
-#include <string_view>
-
 #include <GLFW/glfw3.h>
 
 #define VULKAN_HPP_NO_CONSTRUCTORS

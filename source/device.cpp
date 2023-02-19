@@ -28,7 +28,7 @@ namespace engine {
 
     }
 
-    std::optional<vk::PhysicalDevice> get_physical_device (vk::Instance& instance) {
+    vk::PhysicalDevice get_physical_device (vk::Instance& instance) {
 
         auto suitable = [](vk::PhysicalDevice& device){
 
@@ -66,11 +66,11 @@ namespace engine {
         }
 
         LOG_ERROR("Failed to get Physical Device");
-        return std::nullopt;
+        return nullptr;
 
     }
 
-    std::optional<vk::Device> create_logical_device (vk::PhysicalDevice& device, vk::SurfaceKHR& surface) {
+    vk::Device create_logical_device (vk::PhysicalDevice& device, vk::SurfaceKHR& surface) {
 
         auto indices = get_queue_family_indices(device, surface);
 
@@ -115,7 +115,7 @@ namespace engine {
             return result;
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to abstract Physical Device");
-            return std::nullopt;
+            return nullptr;
         }
 
     }
