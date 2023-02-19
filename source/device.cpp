@@ -5,6 +5,7 @@
 
 #include "device.hpp"
 #include "logging.hpp"
+#include "utils.hpp"
 
 namespace engine {
 
@@ -69,25 +70,6 @@ namespace engine {
 
     }
 
-    QueueFamilyIndices get_queue_family_indices (vk::PhysicalDevice& device, vk::SurfaceKHR& surface) {
-
-        QueueFamilyIndices indices;
-        auto queue_family_properties = device.getQueueFamilyProperties();
-
-        for (std::size_t i = 0; i < queue_family_properties.size(); i++) {
-
-            auto queue_flags = queue_family_properties.at(i).queueFlags;
-            
-            if (queue_flags & vk::QueueFlagBits::eGraphics) indices.graphics_family = i;
-            if (device.getSurfaceSupportKHR(i, surface)) indices.present_family = i;
-            if(indices.graphics_family.has_value() && indices.present_family.has_value()) break;
-
-        }
-
-        return indices;
-
-    }
-
     std::optional<vk::Device> create_logical_device (vk::PhysicalDevice& device, vk::SurfaceKHR& surface) {
 
         auto indices = get_queue_family_indices(device, surface);
@@ -110,7 +92,7 @@ namespace engine {
 
         auto device_features = vk::PhysicalDeviceFeatures();
 
-        auto extensions = std::vector<const char*>{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+        auto extensions = std::vector {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
         auto layers = std::vector<const char*>();
 

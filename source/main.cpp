@@ -1,10 +1,12 @@
 #include <memory>
 
-#include "engine.hpp"
+#include "app.hpp"
 
 auto main (int argc, char** argv) -> int {
 
-    auto engine = std::make_unique<engine::Engine>();
+    auto app = std::make_unique<App>(800, 600, "Learning Vulkan");
+
+    app->run();
 
     return 0;
 }

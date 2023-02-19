@@ -21,10 +21,9 @@ namespace engine {
 
     }
 
-    std::optional<vk::Instance> create_instance (std::string_view app_name) {
+    std::optional<vk::Instance> create_instance ( ) {
 
         auto app_info = vk::ApplicationInfo {
-            .pApplicationName = app_name.data(),
             .apiVersion = VK_VERSION_1_3
         };
 

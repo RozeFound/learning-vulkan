@@ -24,7 +24,8 @@ namespace engine {
         PipeLine ( ) = default;
         PipeLine (vk::Device& device, SwapChain& swapchain);
 
-        constexpr vk::Pipeline get_handle ( ) const { return handle; };
+        constexpr const vk::Pipeline& get_handle ( ) const { return handle; };
+        constexpr const vk::RenderPass& get_renderpass ( ) const { return renderpass; };
 
         void destroy ( );
 

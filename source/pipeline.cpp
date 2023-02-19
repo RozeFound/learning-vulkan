@@ -57,7 +57,11 @@ namespace engine {
         };
 
         auto color_blend_attachment = vk::PipelineColorBlendAttachmentState {
-            .blendEnable = VK_FALSE
+            .blendEnable = VK_FALSE,
+            .colorWriteMask = vk::ColorComponentFlagBits::eR 
+                            | vk::ColorComponentFlagBits::eG 
+                            | vk::ColorComponentFlagBits::eB 
+                            | vk::ColorComponentFlagBits::eA
         };
 
         auto color_blend_info = vk::PipelineColorBlendStateCreateInfo {
@@ -150,12 +154,21 @@ namespace engine {
             .pColorAttachments = &attachment_reference
         };
 
+        auto subpass_dependency = vk::SubpassDependency {
+            .srcSubpass = VK_SUBPASS_EXTERNAL,
+            .srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            .dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite
+        };
+
         auto create_info = vk::RenderPassCreateInfo {
             .flags = vk::RenderPassCreateFlags(),
             .attachmentCount = 1,
             .pAttachments = &attachment,
             .subpassCount = 1,
-            .pSubpasses = &subpass
+            .pSubpasses = &subpass,
+            .dependencyCount = 1,
+            .pDependencies = &subpass_dependency
         };
 
         try {
@@ -169,6 +182,7 @@ namespace engine {
 
     void PipeLine::destroy ( ) {
 
+        LOG_INFO("Destroying Pipeline");
         device.destroyRenderPass(renderpass);
         device.destroyPipelineLayout(layout);
         device.destroyPipeline(handle);

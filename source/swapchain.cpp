@@ -1,7 +1,7 @@
 #include <cstddef>
 #include <limits>
 
-#include "device.hpp"
+#include "utils.hpp"
 #include "swapchain.hpp"
 #include "logging.hpp"
 
@@ -60,9 +60,13 @@ namespace engine {
 
     void SwapChain::destroy ( ) {
 
-        for (const auto& frame : frames)
+        LOG_INFO("Destroying Swapchain Frames");
+        for (const auto& frame : frames) {
+            device.destroyFramebuffer(frame.buffer);
             device.destroyImageView(frame.view);
-
+        }
+            
+        LOG_INFO("Destroying Swapchain");
         device.destroySwapchainKHR(handle);
 
     }
@@ -121,7 +125,7 @@ namespace engine {
 			frames[i].view = device.createImageView(create_info);
 		};
 
-        LOG_INFO("Created ImageView's for swapchain");
+        LOG_INFO("Created ImageView's for SwapChain");
 
     }
 

@@ -39,7 +39,7 @@ set(GLFW_USE_WAYLAND ON)
 CPMAddPackage(
         NAME GLFW
         GITHUB_REPOSITORY glfw/glfw
-        GIT_TAG 3.3.2
+        GIT_TAG 3.3.8
         OPTIONS
           "GLFW_BUILD_TESTS OFF"
           "GLFW_BUILD_EXAMPLES OFF"

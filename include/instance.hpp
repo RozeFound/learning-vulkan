@@ -9,6 +9,6 @@
 namespace engine {
 
     void log_supported_features ( );
-    std::optional<vk::Instance> create_instance (std::string_view application_name);
+    std::optional<vk::Instance> create_instance ( );
 
 }

@@ -15,6 +15,7 @@ namespace engine {
         struct Frame {
             vk::Image image;
             vk::ImageView view;
+            vk::Framebuffer buffer;
         };
 
         vk::SwapchainKHR handle;
@@ -38,11 +39,11 @@ namespace engine {
         SwapChain ( ) = default;
         SwapChain (vk::PhysicalDevice&, vk::Device&, vk::SurfaceKHR&, GLFWwindow*);
         
-        constexpr vk::SwapchainKHR get_handle ( ) const { return handle; };
-        constexpr std::vector<Frame> get_frames ( ) const { return frames; };
+        constexpr const vk::SwapchainKHR& get_handle ( ) const { return handle; };
+        constexpr std::vector<Frame>& get_frames ( ) { return frames; };
 
-        constexpr vk::SurfaceFormatKHR get_format ( ) const { return format; };
-        constexpr vk::Extent2D get_extent ( ) const { return extent; };
+        constexpr const vk::SurfaceFormatKHR& get_format ( ) const { return format; };
+        constexpr const vk::Extent2D& get_extent ( ) const { return extent; };
 
         void destroy ( );
 
