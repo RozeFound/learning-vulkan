@@ -8,7 +8,7 @@
 
 #include "swapchain.hpp"
 #include "pipeline.hpp"
-#include "scene.hpp"
+#include "../scene.hpp"
 #include "imgui.hpp"
 
 namespace engine {

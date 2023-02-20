@@ -6,7 +6,7 @@
 
 #include <GLFW/glfw3.h>
 
-#include "engine.hpp"
+#include "engine/engine.hpp"
 
 class App {
 

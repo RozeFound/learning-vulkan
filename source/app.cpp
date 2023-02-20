@@ -1,11 +1,10 @@
 #include <memory>
 
-#include <imgui.h>
+#include <imgui/imgui.h>
 
 #include "app.hpp"
-#include "engine.hpp"
-#include "logging.hpp"
 #include "scene.hpp"
+#include "engine/logging.hpp"
 
 App::App (std::size_t width, std::size_t height, std::string_view title) {
 

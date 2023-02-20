@@ -28,25 +28,20 @@ include(cmake/tools.cmake)
 
 include(cmake/CPM.cmake)
 
-CPMAddPackage(
-  NAME fmt
-  GIT_TAG 9.1.0
-  GITHUB_REPOSITORY fmtlib/fmt
-)
-
-set(GLFW_USE_WAYLAND ON)
+CPMAddPackage("gh:fmtlib/fmt#9.1.0")
+CPMAddPackage("gh:khronosgroup/vulkan-hpp@1.3.240")
 
 CPMAddPackage(
         NAME GLFW
+        VERSION 3.3.9
         GITHUB_REPOSITORY RozeFound/glfw
         GIT_TAG 35776caf6d73c4fa2c1e31a96bbd521656fb5270
         OPTIONS
           "GLFW_BUILD_TESTS OFF"
           "GLFW_BUILD_EXAMPLES OFF"
           "GLFW_BULID_DOCS OFF"
+          "GLFW_USE_WAYLAND ON"
 )
-
-CPMAddPackage("gh:khronosgroup/vulkan-hpp@1.3.240")
 CPMAddPackage("gh:g-truc/glm#0.9.9.8")
 
 # ---- Add source files ----
@@ -55,7 +50,7 @@ CPMAddPackage("gh:g-truc/glm#0.9.9.8")
 # automatically. Keep that in mind when changing files, or explicitly mention them here.
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/third-party/*.cpp"  
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.cpp"
 )
 
 # ---- Enable libc++ ---- 
@@ -67,7 +62,6 @@ file(GLOB_RECURSE sources CONFIGURE_DEPENDS
 # ---- Create executable ----
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/third-party")
 add_executable(${PROJECT_NAME} ${sources})
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC "$<$<CONFIG:DEBUG>:DEBUG>")
