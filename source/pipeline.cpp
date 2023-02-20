@@ -1,11 +1,13 @@
+#include <glm/glm.hpp>
+
 #include "pipeline.hpp"
 #include "shaders.hpp"
 #include "logging.hpp"
 
 namespace engine {
 
-    PipeLine::PipeLine (vk::Device& device, SwapChain& swapchain) 
-        : device(device), swapchain(swapchain) {
+    PipeLine::PipeLine (vk::Device& device, const vk::SurfaceFormatKHR& format)
+        : device(device), format(format) {
 
         auto vertex_input_info = vk::PipelineVertexInputStateCreateInfo {
             .flags = vk::PipelineVertexInputStateCreateFlags(),
@@ -21,22 +23,20 @@ namespace engine {
             .primitiveRestartEnable = VK_FALSE
         };
 
-        auto viewport = vk::Viewport {
-            .width = static_cast<float>(swapchain.get_extent().width),
-            .height = static_cast<float>(swapchain.get_extent().height),       
-            .minDepth = 0.f,
-            .maxDepth = 1.f
+        auto dynamic_states = std::vector { 
+            vk::DynamicState::eViewport, 
+            vk::DynamicState::eScissor
         };
 
-        auto scissor = vk::Rect2D {
-            .extent = swapchain.get_extent()
+        auto dynamic_state_info = vk::PipelineDynamicStateCreateInfo {
+            .flags = vk::PipelineDynamicStateCreateFlags(),
+            .dynamicStateCount = static_cast<uint32_t>(dynamic_states.size()),
+            .pDynamicStates = dynamic_states.data()
         };
 
         auto viewport_state_info = vk::PipelineViewportStateCreateInfo {
             .viewportCount = 1,
-            .pViewports = &viewport,
             .scissorCount = 1,
-            .pScissors = &scissor
         };
 
         auto rasterizer = vk::PipelineRasterizationStateCreateInfo {
@@ -89,7 +89,7 @@ namespace engine {
             .pMultisampleState = &multisampling,
             .pDepthStencilState = nullptr,
             .pColorBlendState = &color_blend_info,
-            .pDynamicState = nullptr,
+            .pDynamicState = &dynamic_state_info,
             .layout = layout,
             .renderPass = renderpass,
             .subpass = 0,
@@ -110,12 +110,17 @@ namespace engine {
 
     void PipeLine::create_layout ( ) {
 
+        auto pushconstant_info = vk::PushConstantRange {
+            .stageFlags = vk::ShaderStageFlagBits::eVertex,
+            .size = sizeof(glm::mat4x4)
+        };
+
         auto create_info = vk::PipelineLayoutCreateInfo {
             .flags = vk::PipelineLayoutCreateFlags(),
             .setLayoutCount = 0,
             .pSetLayouts = nullptr,
-            .pushConstantRangeCount = 0,
-            .pPushConstantRanges = nullptr
+            .pushConstantRangeCount = 1,
+            .pPushConstantRanges = &pushconstant_info
         };
 
         try {
@@ -131,7 +136,7 @@ namespace engine {
 
         auto attachment = vk::AttachmentDescription {
             .flags = vk::AttachmentDescriptionFlags(),
-            .format = swapchain.get_format().format,
+            .format = format.format,
             .samples = vk::SampleCountFlagBits::e1,
             .loadOp = vk::AttachmentLoadOp::eClear,
             .storeOp = vk::AttachmentStoreOp::eStore,

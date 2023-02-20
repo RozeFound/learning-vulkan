@@ -7,13 +7,13 @@
 
 #include "swapchain.hpp"
 #include "pipeline.hpp"
+#include "scene.hpp"
 
 namespace engine {
 
     class Engine {
 
-        const int max_frames_in_flight = 2;
-        uint32_t frame_number = 0;
+        int max_frames_in_flight, frame_number;
 
         vk::DebugUtilsMessengerEXT debug_messenger;
         vk::DispatchLoaderDynamic dldi;
@@ -36,18 +36,21 @@ namespace engine {
         void make_window ( );
         void make_instance ( );
         void make_device ( );
+        void prepare ( );
 
-        void make_framebuffers ( );
+        void remake_swapchain ( );
+
         void make_command_pool ( );
-        void make_commandbuffers ( );
-        void record_draw_commands (uint32_t index);
+        void record_draw_commands (uint32_t index, Scene& scene);
 
     public:
+
+        bool is_framebuffer_resized = false;
 
         Engine(GLFWwindow* window);
         ~Engine ( );
 
-        void draw ( );
+        void draw (Scene& scene);
 
         constexpr const auto& get_instance ( ) const { return instance; };
         constexpr const auto get_devices ( ) const { return std::pair(physical_device, device); } ;

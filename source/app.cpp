@@ -3,6 +3,7 @@
 #include "app.hpp"
 #include "engine.hpp"
 #include "logging.hpp"
+#include "scene.hpp"
 
 App::App (std::size_t width, std::size_t height, std::string_view title) {
 
@@ -21,9 +22,19 @@ GLFWwindow* App::create_window (std::size_t width, std::size_t height, std::stri
 
     glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     auto window = glfwCreateWindow(width, height, title.data(), nullptr, nullptr);
+    glfwSetWindowUserPointer(window, this);
+
+    auto callback = [](GLFWwindow* window, int width, int height) {
+
+        auto app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
+        app->graphics_engine->is_framebuffer_resized = true;
+
+    };
+
+    glfwSetFramebufferSizeCallback(window, callback);
 
     if (window) {LOG_INFO("Successfully created {} window!", title);}
     else LOG_ERROR("Failed to create {} window", title);
@@ -34,10 +45,12 @@ GLFWwindow* App::create_window (std::size_t width, std::size_t height, std::stri
 
 void App::run ( ) {
 
+    Scene scene;
+
     while (!glfwWindowShouldClose(window)) {
 
         glfwPollEvents();
-        graphics_engine->draw();
+        graphics_engine->draw(scene);
         calculate_framerate();
 
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)

@@ -1,6 +1,8 @@
 #include <limits>
 #include <vector>
 
+#include <glm/gtc/matrix_transform.hpp>
+
 #include "instance.hpp"
 #include "device.hpp"
 #include "engine.hpp"
@@ -15,11 +17,8 @@ namespace engine {
 
         make_instance();
         make_device();
+        prepare();
 
-        make_framebuffers();
-        make_command_pool();
-        make_commandbuffers();
-        
     }
 
     Engine::~Engine ( ) {
@@ -85,34 +84,34 @@ namespace engine {
         graphics_queue = device.getQueue(indices.graphics_family.value(), 0);
         present_queue = device.getQueue(indices.present_family.value(), 0);
 
-        swapchain = SwapChain(physical_device, device, surface, window);
-        pipeline = PipeLine(device, swapchain);
+    }
+
+    void Engine::prepare ( ) {
+
+        make_command_pool();
+
+        pipeline = PipeLine(device, SwapChain::query_format(physical_device, surface));
+        swapchain = SwapChain(physical_device, device, surface, pipeline.get_renderpass(), command_pool, window);
+
+        max_frames_in_flight = swapchain.get_frames().size();
+        frame_number = 0;
 
     }
 
-    void Engine::make_framebuffers ( ) {
+    void Engine::remake_swapchain ( ) {
 
-        for (auto& frame : swapchain.get_frames()) {
+        int width = 0, height = 0;
+        while (width == 0 || height == 0) {
+            glfwGetFramebufferSize(window, &width, &height);
+            glfwWaitEvents();
+        }
 
-            auto attachments = std::vector { frame.view };
+        device.waitIdle();
 
-            auto create_info = vk::FramebufferCreateInfo {
-                .flags = vk::FramebufferCreateFlags(),
-                .renderPass = pipeline.get_renderpass(),
-                .attachmentCount = static_cast<uint32_t>(attachments.size()),
-                .pAttachments = attachments.data(),
-                .width = swapchain.get_extent().width,
-                .height = swapchain.get_extent().height,
-                .layers = 1
-            };
+        swapchain.recreate();
 
-            try {
-                frame.buffer = device.createFramebuffer(create_info);
-            } catch (vk::SystemError err) {
-                LOG_ERROR("Failed to create Framebuffer");
-            }
-
-        }        
+        frame_number = 0;
+        is_framebuffer_resized = false;
 
     }
 
@@ -134,26 +133,7 @@ namespace engine {
 
     }
 
-    void Engine::make_commandbuffers ( ) {
-        
-        auto allocate_info = vk::CommandBufferAllocateInfo {
-            .commandPool = command_pool,
-            .level = vk::CommandBufferLevel::ePrimary,
-            .commandBufferCount = static_cast<uint32_t>(swapchain.get_frames().size())
-        };
-
-        try {
-            auto buffers = device.allocateCommandBuffers(allocate_info);
-            for (std::size_t i = 0; i < swapchain.get_frames().size(); i++)
-                swapchain.get_frames().at(i).commands = buffers.at(i);
-            LOG_INFO("Allocated Command Buffer");
-        } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to allocate Command Buffer");
-        }
-
-    }
-
-    void Engine::record_draw_commands (uint32_t index) {
+    void Engine::record_draw_commands (uint32_t index, Scene& scene) {
 
         const auto& command_buffer = swapchain.get_frames().at(index).commands;
 
@@ -176,7 +156,32 @@ namespace engine {
 
         command_buffer.beginRenderPass(renderpass_info, vk::SubpassContents::eInline);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get_handle());
-        command_buffer.draw(3, 1, 0, 0);
+
+        auto viewport = vk::Viewport {
+            .width = static_cast<float>(swapchain.get_extent().width),
+            .height = static_cast<float>(swapchain.get_extent().height),       
+            .minDepth = 0.f,
+            .maxDepth = 1.f
+        };
+
+        command_buffer.setViewport(0, 1, &viewport);
+
+        auto scissor = vk::Rect2D {
+            .extent = swapchain.get_extent()
+        };
+
+        command_buffer.setScissor(0, 1, &scissor);
+
+        for (const auto& position : scene.triangle_positions) {
+
+            auto matrix = glm::translate(glm::mat4x4(1.f), position);
+
+            command_buffer.pushConstants(pipeline.get_layout(), 
+                vk::ShaderStageFlagBits::eVertex, 0, sizeof(matrix), &matrix);
+
+            command_buffer.draw(3, 1, 0, 0);
+
+        }
 
         command_buffer.endRenderPass();
 
@@ -188,19 +193,23 @@ namespace engine {
 
     }
 
-    void Engine::draw ( ) {
+    void Engine::draw (Scene& scene) {
 
         constexpr auto timeout = std::numeric_limits<uint64_t>::max();
         const auto& frame = swapchain.get_frames().at(frame_number);
 
         auto wait_result = device.waitForFences(frame.in_flight, VK_TRUE, timeout);
-        device.resetFences(frame.in_flight);
 
         auto image_result = device.acquireNextImageKHR(swapchain.get_handle(), timeout, frame.image_available);
-        
+    
+        if (image_result.result == vk::Result::eErrorOutOfDateKHR)
+            { remake_swapchain(); return; }
+
+        device.resetFences(frame.in_flight);
+
         frame.commands.reset();
 
-        record_draw_commands(frame_number);
+        record_draw_commands(image_result.value, scene);
 
         vk::Semaphore wait_semaphores[] = { frame.image_available };
         vk::Semaphore signal_semaphores[] = { frame.render_finished };
@@ -231,6 +240,10 @@ namespace engine {
         };
 
         auto present_result = present_queue.presentKHR(present_info);
+
+        if (present_result == vk::Result::eErrorOutOfDateKHR 
+            || present_result == vk::Result::eSuboptimalKHR || is_framebuffer_resized)
+            { remake_swapchain(); return; };
 
         frame_number = (frame_number + 1) % max_frames_in_flight;
     }

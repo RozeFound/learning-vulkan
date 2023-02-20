@@ -3,8 +3,6 @@
 #define VULKAN_HPP_NO_CONSTRUCTORS
 #include <vulkan/vulkan.hpp>
 
-#include "swapchain.hpp"
-
 namespace engine {
 
     class PipeLine {
@@ -14,7 +12,7 @@ namespace engine {
         vk::RenderPass renderpass;
 
         vk::Device device;
-        SwapChain swapchain;
+        vk::SurfaceFormatKHR format;
 
         void create_layout ( );
         void create_renderpass ( );
@@ -22,9 +20,10 @@ namespace engine {
         public:
 
         PipeLine ( ) = default;
-        PipeLine (vk::Device& device, SwapChain& swapchain);
+        PipeLine (vk::Device& device, const vk::SurfaceFormatKHR& format);
 
         constexpr const vk::Pipeline& get_handle ( ) const { return handle; };
+        constexpr const vk::PipelineLayout& get_layout ( ) const { return layout; };
         constexpr const vk::RenderPass& get_renderpass ( ) const { return renderpass; };
 
         void destroy ( );
