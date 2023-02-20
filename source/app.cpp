@@ -1,5 +1,7 @@
 #include <memory>
 
+#include <imgui.h>
+
 #include "app.hpp"
 #include "engine.hpp"
 #include "logging.hpp"
@@ -11,6 +13,7 @@ App::App (std::size_t width, std::size_t height, std::string_view title) {
 
     window = create_window(width, height, title);
     graphics_engine = std::make_unique<engine::Engine>(window);
+    graphics_engine->on_render = on_render;
 
 }
 
@@ -40,6 +43,12 @@ GLFWwindow* App::create_window (std::size_t width, std::size_t height, std::stri
     else LOG_ERROR("Failed to create {} window", title);
 
     return window;
+
+}
+
+void App::on_render ( ) {
+
+    ImGui::ShowDemoWindow();
 
 }
 

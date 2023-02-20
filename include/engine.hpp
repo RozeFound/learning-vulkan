@@ -1,6 +1,7 @@
 #pragma once
 
 #include <GLFW/glfw3.h>
+#include <functional>
 
 #define VULKAN_HPP_NO_CONSTRUCTORS
 #include <vulkan/vulkan.hpp>
@@ -8,12 +9,14 @@
 #include "swapchain.hpp"
 #include "pipeline.hpp"
 #include "scene.hpp"
+#include "imgui.hpp"
 
 namespace engine {
 
     class Engine {
 
-        int max_frames_in_flight, frame_number;
+        uint32_t max_frames_in_flight, frame_number;
+        const bool is_imgui_enabled = false;
 
         vk::DebugUtilsMessengerEXT debug_messenger;
         vk::DispatchLoaderDynamic dldi;
@@ -25,6 +28,7 @@ namespace engine {
         vk::PhysicalDevice physical_device;
         vk::Device device;
 
+        ImGUI imgui;
         SwapChain swapchain;
         PipeLine pipeline;
 
@@ -46,6 +50,7 @@ namespace engine {
     public:
 
         bool is_framebuffer_resized = false;
+        std::function<void()> on_render = nullptr;
 
         Engine(GLFWwindow* window);
         ~Engine ( );

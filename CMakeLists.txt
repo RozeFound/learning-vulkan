@@ -53,7 +53,10 @@ CPMAddPackage("gh:g-truc/glm#0.9.9.8")
 
 # Note: globbing sources is considered bad practice as CMake's generators may not detect new files
 # automatically. Keep that in mind when changing files, or explicitly mention them here.
-file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp")
+file(GLOB_RECURSE sources CONFIGURE_DEPENDS
+  "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/third-party/*.cpp"  
+)
 
 # ---- Enable libc++ ---- 
 
@@ -64,6 +67,7 @@ file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/source/
 # ---- Create executable ----
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/third-party")
 add_executable(${PROJECT_NAME} ${sources})
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC "$<$<CONFIG:DEBUG>:DEBUG>")

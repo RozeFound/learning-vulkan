@@ -24,7 +24,7 @@ namespace engine {
 
         constexpr const vk::Pipeline& get_handle ( ) const { return handle; };
         constexpr const vk::PipelineLayout& get_layout ( ) const { return layout; };
-        constexpr const vk::RenderPass& get_renderpass ( ) const { return renderpass; };
+        constexpr vk::RenderPass& get_renderpass ( ) { return renderpass; };
 
         void destroy ( );
 

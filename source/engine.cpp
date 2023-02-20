@@ -25,6 +25,8 @@ namespace engine {
 
         device.waitIdle();
 
+        if (is_imgui_enabled) imgui.destroy();
+
         LOG_INFO("Destroying Engine...");
 
         if (debug) instance.destroyDebugUtilsMessengerEXT(debug_messenger, nullptr, dldi);
@@ -92,6 +94,7 @@ namespace engine {
 
         pipeline = PipeLine(device, SwapChain::query_format(physical_device, surface));
         swapchain = SwapChain(physical_device, device, surface, pipeline.get_renderpass(), command_pool, window);
+        if (is_imgui_enabled) imgui = ImGUI(physical_device, device, instance, surface, swapchain, pipeline, window);
 
         max_frames_in_flight = swapchain.get_frames().size();
         frame_number = 0;
@@ -144,7 +147,7 @@ namespace engine {
             LOG_ERROR("Failed to begin command record");
         }
 
-        auto clear_color = vk::ClearValue { std::array<float, 4>{1.f, 1.f, 1.f, 1.f} };
+        auto clear_color = vk::ClearValue { std::array {1.f, 1.f, 1.f, 1.f} };
 
         auto renderpass_info = vk::RenderPassBeginInfo {
             .renderPass = pipeline.get_renderpass(),
@@ -210,19 +213,23 @@ namespace engine {
         frame.commands.reset();
 
         record_draw_commands(image_result.value, scene);
-
-        vk::Semaphore wait_semaphores[] = { frame.image_available };
-        vk::Semaphore signal_semaphores[] = { frame.render_finished };
+        
         vk::PipelineStageFlags wait_stages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
+        auto command_buffers = std::vector { frame.commands };
+
+        if (is_imgui_enabled) {
+            auto& imgui_command_buffer = imgui.get_commands(image_result.value, on_render);
+            command_buffers.push_back(imgui_command_buffer);
+        }
 
         auto submit_info = vk::SubmitInfo {
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores = wait_semaphores,
+            .pWaitSemaphores = &frame.image_available,
             .pWaitDstStageMask = wait_stages,
-            .commandBufferCount = 1,
-            .pCommandBuffers = &frame.commands,
+            .commandBufferCount = static_cast<uint32_t>(command_buffers.size()),
+            .pCommandBuffers = command_buffers.data(),
             .signalSemaphoreCount = 1,
-            .pSignalSemaphores = signal_semaphores
+            .pSignalSemaphores = &frame.render_finished
         };
 
         try {
@@ -233,7 +240,7 @@ namespace engine {
 
         auto present_info = vk::PresentInfoKHR {
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores = signal_semaphores,
+            .pWaitSemaphores = &frame.render_finished,
             .swapchainCount = 1,
             .pSwapchains = &swapchain.get_handle(),
             .pImageIndices = &image_result.value
