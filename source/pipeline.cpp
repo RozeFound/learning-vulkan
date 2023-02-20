@@ -1,6 +1,5 @@
 #include "pipeline.hpp"
 #include "shaders.hpp"
-#include "swapchain.hpp"
 #include "logging.hpp"
 
 namespace engine {

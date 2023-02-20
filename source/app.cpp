@@ -6,6 +6,8 @@
 
 App::App (std::size_t width, std::size_t height, std::string_view title) {
 
+    this->title = title;
+
     window = create_window(width, height, title);
     graphics_engine = std::make_unique<engine::Engine>(window);
 
@@ -17,7 +19,7 @@ GLFWwindow* App::create_window (std::size_t width, std::size_t height, std::stri
 
     glfwInit();
 
-    glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+    glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
@@ -36,10 +38,32 @@ void App::run ( ) {
 
         glfwPollEvents();
         graphics_engine->draw();
+        calculate_framerate();
 
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(window, GLFW_TRUE);
 
     }
+
+}
+
+void App::calculate_framerate ( ) {
+
+    current_time = glfwGetTime();
+    auto delta = current_time - last_time;
+
+    if (delta >= 1) {
+
+        uint64_t framerate = std::max(1.0, frames / delta);
+
+        auto title = fmt::format("{} - {} FPS", this->title, framerate);
+        glfwSetWindowTitle(window, title.c_str());
+
+        last_time = current_time;
+        frames = 0;
+
+    }
+    
+    frames++;
 
 }

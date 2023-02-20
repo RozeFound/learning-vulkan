@@ -64,6 +64,10 @@ namespace engine {
         for (const auto& frame : frames) {
             device.destroyFramebuffer(frame.buffer);
             device.destroyImageView(frame.view);
+
+            device.destroySemaphore(frame.image_available);
+            device.destroySemaphore(frame.render_finished);
+            device.destroyFence(frame.in_flight);
         }
             
         LOG_INFO("Destroying Swapchain");
@@ -114,15 +118,19 @@ namespace engine {
 
 			auto create_info = vk::ImageViewCreateInfo {
                 .flags = vk::ImageViewCreateFlags(),
-                .image = images[i],
+                .image = images.at(i),
                 .viewType = vk::ImageViewType::e2D,
                 .format = format.format,
                 .components = vk::ComponentMapping(),
                 .subresourceRange = subres_range
             };
 
-			frames[i].image = images[i];
-			frames[i].view = device.createImageView(create_info);
+			frames.at(i).image = images.at(i);
+			frames.at(i).view = device.createImageView(create_info);
+
+            frames.at(i).image_available = make_semaphore(device);
+            frames.at(i).render_finished = make_semaphore(device);
+            frames.at(i).in_flight = make_fence(device);
 		};
 
         LOG_INFO("Created ImageView's for SwapChain");

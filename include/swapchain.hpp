@@ -15,6 +15,11 @@ namespace engine {
             vk::Image image;
             vk::ImageView view;
             vk::Framebuffer buffer;
+            vk::CommandBuffer commands;
+
+            vk::Semaphore image_available;
+            vk::Semaphore render_finished;
+            vk::Fence in_flight;
         };
 
         vk::SwapchainKHR handle;

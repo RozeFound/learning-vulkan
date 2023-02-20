@@ -38,8 +38,8 @@ set(GLFW_USE_WAYLAND ON)
 
 CPMAddPackage(
         NAME GLFW
-        GITHUB_REPOSITORY glfw/glfw
-        GIT_TAG 3.3.8
+        GITHUB_REPOSITORY RozeFound/glfw
+        GIT_TAG 35776caf6d73c4fa2c1e31a96bbd521656fb5270
         OPTIONS
           "GLFW_BUILD_TESTS OFF"
           "GLFW_BUILD_EXAMPLES OFF"

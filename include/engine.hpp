@@ -12,6 +12,9 @@ namespace engine {
 
     class Engine {
 
+        const int max_frames_in_flight = 2;
+        uint32_t frame_number = 0;
+
         vk::DebugUtilsMessengerEXT debug_messenger;
         vk::DispatchLoaderDynamic dldi;
 
@@ -29,11 +32,6 @@ namespace engine {
         vk::Queue present_queue;
 
         vk::CommandPool command_pool;
-        vk::CommandBuffer command_buffer;
-
-        vk::Semaphore image_available;
-        vk::Semaphore render_finished;
-        vk::Fence in_flight;
 
         void make_window ( );
         void make_instance ( );
@@ -41,7 +39,7 @@ namespace engine {
 
         void make_framebuffers ( );
         void make_command_pool ( );
-        void make_commandbuffer ( );
+        void make_commandbuffers ( );
         void record_draw_commands (uint32_t index);
 
     public:

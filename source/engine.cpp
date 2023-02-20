@@ -18,11 +18,7 @@ namespace engine {
 
         make_framebuffers();
         make_command_pool();
-        make_commandbuffer();
-
-        image_available = make_semaphore(device);
-        render_finished = make_semaphore(device);
-        in_flight = make_fence(device);
+        make_commandbuffers();
         
     }
 
@@ -31,10 +27,6 @@ namespace engine {
         device.waitIdle();
 
         LOG_INFO("Destroying Engine...");
-
-        device.destroySemaphore(image_available);
-        device.destroySemaphore(render_finished);
-        device.destroyFence(in_flight);
 
         if (debug) instance.destroyDebugUtilsMessengerEXT(debug_messenger, nullptr, dldi);
 
@@ -142,17 +134,18 @@ namespace engine {
 
     }
 
-    void Engine::make_commandbuffer ( ) {
+    void Engine::make_commandbuffers ( ) {
         
         auto allocate_info = vk::CommandBufferAllocateInfo {
             .commandPool = command_pool,
             .level = vk::CommandBufferLevel::ePrimary,
-            .commandBufferCount = 1
+            .commandBufferCount = static_cast<uint32_t>(swapchain.get_frames().size())
         };
 
         try {
             auto buffers = device.allocateCommandBuffers(allocate_info);
-            command_buffer = buffers.at(0);
+            for (std::size_t i = 0; i < swapchain.get_frames().size(); i++)
+                swapchain.get_frames().at(i).commands = buffers.at(i);
             LOG_INFO("Allocated Command Buffer");
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to allocate Command Buffer");
@@ -161,6 +154,8 @@ namespace engine {
     }
 
     void Engine::record_draw_commands (uint32_t index) {
+
+        const auto& command_buffer = swapchain.get_frames().at(index).commands;
 
         auto begin_info = vk::CommandBufferBeginInfo();
         try {
@@ -195,17 +190,20 @@ namespace engine {
 
     void Engine::draw ( ) {
 
-        auto wait_result = device.waitForFences(in_flight, VK_TRUE, std::numeric_limits<uint64_t>::max());
-        device.resetFences(in_flight);
+        constexpr auto timeout = std::numeric_limits<uint64_t>::max();
+        const auto& frame = swapchain.get_frames().at(frame_number);
 
-        auto index = device.acquireNextImageKHR(swapchain.get_handle(), std::numeric_limits<uint64_t>::max(), image_available);
+        auto wait_result = device.waitForFences(frame.in_flight, VK_TRUE, timeout);
+        device.resetFences(frame.in_flight);
+
+        auto image_result = device.acquireNextImageKHR(swapchain.get_handle(), timeout, frame.image_available);
         
-        command_buffer.reset();
+        frame.commands.reset();
 
-        record_draw_commands(index.value);
+        record_draw_commands(frame_number);
 
-        vk::Semaphore wait_semaphores[] = { image_available };
-        vk::Semaphore signal_semaphores[] = { render_finished };
+        vk::Semaphore wait_semaphores[] = { frame.image_available };
+        vk::Semaphore signal_semaphores[] = { frame.render_finished };
         vk::PipelineStageFlags wait_stages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
 
         auto submit_info = vk::SubmitInfo {
@@ -213,13 +211,13 @@ namespace engine {
             .pWaitSemaphores = wait_semaphores,
             .pWaitDstStageMask = wait_stages,
             .commandBufferCount = 1,
-            .pCommandBuffers = &command_buffer,
+            .pCommandBuffers = &frame.commands,
             .signalSemaphoreCount = 1,
             .pSignalSemaphores = signal_semaphores
         };
 
         try {
-            graphics_queue.submit(submit_info, in_flight);
+            graphics_queue.submit(submit_info, frame.in_flight);
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to submit draw command buffer")
         }
@@ -229,10 +227,12 @@ namespace engine {
             .pWaitSemaphores = signal_semaphores,
             .swapchainCount = 1,
             .pSwapchains = &swapchain.get_handle(),
-            .pImageIndices = &index.value
+            .pImageIndices = &image_result.value
         };
 
         auto present_result = present_queue.presentKHR(present_info);
+
+        frame_number = (frame_number + 1) % max_frames_in_flight;
     }
 
 }
