@@ -3,18 +3,23 @@
 #include "pipeline.hpp"
 #include "shaders.hpp"
 #include "logging.hpp"
+#include "mesh.hpp"
+#include "utils.hpp"
 
 namespace engine {
 
     PipeLine::PipeLine (vk::Device& device, const vk::SurfaceFormatKHR& format)
         : device(device), format(format) {
 
+        auto binding_description = Vertex::get_binding_description();
+        auto attribute_descriptions = Vertex::get_attribute_descriptions(); 
+
         auto vertex_input_info = vk::PipelineVertexInputStateCreateInfo {
             .flags = vk::PipelineVertexInputStateCreateFlags(),
-            .vertexBindingDescriptionCount = 0,
-            .pVertexBindingDescriptions = nullptr,
-            .vertexAttributeDescriptionCount = 0,
-            .pVertexAttributeDescriptions = nullptr
+            .vertexBindingDescriptionCount = 1,
+            .pVertexBindingDescriptions = &binding_description,
+            .vertexAttributeDescriptionCount = to_u32(attribute_descriptions.size()),
+            .pVertexAttributeDescriptions = attribute_descriptions.data()
         };
 
         auto input_assembly_info = vk::PipelineInputAssemblyStateCreateInfo {

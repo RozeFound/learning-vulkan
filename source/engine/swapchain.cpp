@@ -12,16 +12,18 @@ namespace engine {
 
         capabilities = physical_device.getSurfaceCapabilitiesKHR(surface);
         format = query_format(physical_device, surface);
-        extent = query_extent(capabilities, window);
 
-        create_swapchain();
+        create_handle();
+
+        make_commandbuffers();
 
     }
 
-    void SwapChain::create_swapchain ( ) {
+    void SwapChain::create_handle ( ) {
 
         auto modes = physical_device.getSurfacePresentModesKHR(surface);
         auto format = get_format();
+        extent = query_extent(capabilities, window);
 
         auto present_mode = vk::PresentModeKHR::eFifo;
 
@@ -43,8 +45,8 @@ namespace engine {
             .preTransform = capabilities.currentTransform,
             .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
             .presentMode = present_mode,
-            .clipped = VK_TRUE,
-        };
+            .clipped = VK_TRUE
+        };      
 
         auto indices = get_queue_family_indices(physical_device, surface);
         uint32_t queue_family_indices[] = { indices.graphics_family.value(), indices.present_family.value() };
@@ -56,7 +58,10 @@ namespace engine {
         } else create_info.imageSharingMode = vk::SharingMode::eExclusive;
 
         try {
-            handle = device.createSwapchainKHR(create_info);
+            if (handle) create_info.oldSwapchain = handle;
+            auto result = device.createSwapchainKHR(create_info);
+            if (handle) destroy();
+            handle = result;
             LOG_INFO("Successfully created SwapChain");
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to create SwapChain");
@@ -80,16 +85,6 @@ namespace engine {
             
         LOG_INFO("Destroying Swapchain");
         device.destroySwapchainKHR(handle);
-
-    }
-
-    void SwapChain::recreate ( ) {
-
-        destroy();
-
-        extent = query_extent(capabilities, window);
-
-        create_swapchain();
 
     }
 
@@ -169,7 +164,6 @@ namespace engine {
         }
 
         make_framebuffers();
-        make_commandbuffers();
 
     }
 

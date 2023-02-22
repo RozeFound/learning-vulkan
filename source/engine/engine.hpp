@@ -2,6 +2,7 @@
 
 #include <GLFW/glfw3.h>
 #include <functional>
+#include "mesh.hpp"
 
 #define VULKAN_HPP_NO_CONSTRUCTORS
 #include <vulkan/vulkan.hpp>
@@ -29,6 +30,8 @@ namespace engine {
         vk::Device device;
 
         ImGUI imgui;
+        Mesh* asset;
+
         SwapChain swapchain;
         PipeLine pipeline;
 

@@ -37,7 +37,6 @@ namespace engine {
         vk::SurfaceFormatKHR format;
         vk::Extent2D extent;
 
-        void create_swapchain ( );
         void make_framebuffers ( );
         void make_commandbuffers ( );
         void make_frames ( );
@@ -47,7 +46,7 @@ namespace engine {
         SwapChain ( ) = default;
         SwapChain (vk::PhysicalDevice&, vk::Device&, vk::SurfaceKHR&, const vk::RenderPass&, vk::CommandPool&, GLFWwindow*);
 
-        void recreate();
+        void create_handle ( );
 
         static vk::Extent2D query_extent (vk::PhysicalDevice&, vk::SurfaceKHR&, GLFWwindow*);
         static vk::Extent2D query_extent (vk::SurfaceCapabilitiesKHR&, GLFWwindow*);

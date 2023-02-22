@@ -77,7 +77,11 @@ namespace engine {
         auto queue_info = std::vector<vk::DeviceQueueCreateInfo>();
         auto queue_piority = 1.f;
 
-        auto unique_indices = std::set<uint32_t>{indices.graphics_family.value(), indices.present_family.value()};
+        auto unique_indices = std::set<uint32_t> {
+            indices.transfer_family.value(),
+            indices.graphics_family.value(), 
+            indices.present_family.value()
+        };
 
         for (const auto& queue_family : unique_indices) {
 

@@ -14,7 +14,12 @@ namespace engine {
             
             if (queue_flags & vk::QueueFlagBits::eGraphics) indices.graphics_family = i;
             if (device.getSurfaceSupportKHR(i, surface)) indices.present_family = i;
-            if(indices.graphics_family.has_value() && indices.present_family.has_value()) break;
+
+            if (queue_flags & vk::QueueFlagBits::eTransfer 
+                && queue_flags & ~vk::QueueFlagBits::eGraphics) 
+                indices.transfer_family = i;
+
+            if(indices.is_complete()) break;
 
         }
 
@@ -50,6 +55,10 @@ namespace engine {
             return nullptr;
         }
 
+    }
+
+    uint32_t to_u32 (std::size_t value) {
+        return static_cast<uint32_t>(value);
     }
 
 }

@@ -36,6 +36,9 @@ namespace engine {
 
         pipeline.destroy();
         swapchain.destroy();
+
+        delete asset;
+
         LOG_INFO("Destroying Device");
         device.destroy();
 
@@ -99,6 +102,8 @@ namespace engine {
         max_frames_in_flight = swapchain.get_frames().size();
         frame_number = 0;
 
+        asset = new Mesh(physical_device, device, surface);
+
     }
 
     void Engine::remake_swapchain ( ) {
@@ -109,9 +114,13 @@ namespace engine {
             glfwWaitEvents();
         }
 
+        if (width == swapchain.get_extent().width 
+            && height == swapchain.get_extent().height)
+            return;
+
         device.waitIdle();
 
-        swapchain.recreate();
+        swapchain.create_handle();
 
         frame_number = 0;
         is_framebuffer_resized = false;
@@ -160,6 +169,9 @@ namespace engine {
         command_buffer.beginRenderPass(renderpass_info, vk::SubpassContents::eInline);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get_handle());
 
+        auto offsets = std::array<vk::DeviceSize, 1> {}; 
+        command_buffer.bindVertexBuffers(0, 1, &asset->vertex_buffer.buffer, offsets.data());
+
         auto viewport = vk::Viewport {
             .width = static_cast<float>(swapchain.get_extent().width),
             .height = static_cast<float>(swapchain.get_extent().height),       
@@ -182,7 +194,7 @@ namespace engine {
             command_buffer.pushConstants(pipeline.get_layout(), 
                 vk::ShaderStageFlagBits::eVertex, 0, sizeof(matrix), &matrix);
 
-            command_buffer.draw(3, 1, 0, 0);
+            command_buffer.draw(to_u32(asset->vertices.size()), 1, 0, 0);
 
         }
 
