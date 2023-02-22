@@ -1,5 +1,3 @@
-#include <string>
-#include <utility>
 #include <ranges>
 #include <set>
 
@@ -9,26 +7,80 @@
 
 namespace engine {
 
-    auto get_device_properties (vk::PhysicalDevice& device) {
+    Device::Device (GLFWwindow* window) : window(window) {
 
-        auto properties = device.getProperties();
+        make_instance();
 
-        std::string device_name = properties.deviceName;
-        std::string device_type;
+        VkSurfaceKHR c_surface;
 
-        switch (properties.deviceType) {
-            case (vk::PhysicalDeviceType::eCpu): device_type = "CPU"; break;
-            case (vk::PhysicalDeviceType::eDiscreteGpu): device_type = "Discrete GPU"; break;
-            case (vk::PhysicalDeviceType::eIntegratedGpu): device_type = "Integrated GPU"; break;
-            case (vk::PhysicalDeviceType::eVirtualGpu): device_type = "Virtual GPU"; break;
-            default: device_type = "Other";
-        }
+        if (glfwCreateWindowSurface(instance, window, nullptr, &c_surface) != VK_SUCCESS)
+            LOG_ERROR("Cannot abstract GLFW surface for Vulkan");
 
-        return std::make_pair(device_name, device_type);
+        surface = c_surface;
+
+        choose_physical_device();
+        create_handle();
 
     }
 
-    vk::PhysicalDevice get_physical_device (vk::Instance& instance) {
+    void Device::destroy ( ) {
+
+        LOG_INFO("Destroying Device");
+        handle.destroy();
+        LOG_INFO("Destroying Surface");
+        instance.destroySurfaceKHR(surface);
+        LOG_INFO("Destroying Instance");
+        instance.destroy();
+
+    }
+
+    void Device::make_instance ( ) {
+
+        auto app_info = vk::ApplicationInfo {
+            .apiVersion = VK_VERSION_1_3
+        };
+
+        uint32_t glfw_extension_count = 0;
+        auto glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
+        if (!glfw_extensions) LOG_WARNING("Failed to fetch required GLFW Extensions!");
+
+        auto extensions = std::vector<const char*>(glfw_extensions, glfw_extensions + glfw_extension_count);
+        auto layers = std::vector<const char*>();
+
+
+        if constexpr (debug) {
+
+            extensions.push_back("VK_EXT_debug_utils");
+
+            LOG_VERBOSE("Extensions to be requested: ");
+            for (auto& extension : extensions) {
+                LOG_VERBOSE("\t{}", extension);
+            }
+
+            layers.push_back("VK_LAYER_KHRONOS_validation");
+
+        }
+
+        auto create_info = vk::InstanceCreateInfo {
+            .flags = vk::InstanceCreateFlags(),
+            .pApplicationInfo = &app_info,
+            .enabledLayerCount = static_cast<uint32_t>(layers.size()),
+            .ppEnabledLayerNames = layers.data(),
+            .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+            .ppEnabledExtensionNames = extensions.data()
+        };
+
+        try {
+            instance = vk::createInstance(create_info);
+            LOG_INFO("Successfully created Instance");
+            
+        } catch(vk::SystemError err) {
+            LOG_ERROR("Failed to create Instance");
+        }
+
+    } 
+
+    void Device::choose_physical_device ( ) {
 
         auto suitable = [](vk::PhysicalDevice& device){
 
@@ -45,34 +97,37 @@ namespace engine {
 
         auto devices = instance.enumeratePhysicalDevices();
 
-        for (auto& device : devices | std::views::filter(suitable)) {
+        auto device = std::ranges::find_if(devices, suitable);
+        if (device != std::end(devices)) gpu = *device;
+        else LOG_ERROR("Failed to get Physical Device");
 
-            if constexpr (debug) {
+        auto properties = device->getProperties();
 
-                auto[name, type] = get_device_properties(device);
+        std::string device_type;
 
-                LOG_INFO("Device Name: {}", name);
-                LOG_INFO("Device Type: {}", type);
+        switch (properties.deviceType) {
+            case (vk::PhysicalDeviceType::eCpu): device_type = "CPU"; break;
+            case (vk::PhysicalDeviceType::eDiscreteGpu): device_type = "Discrete GPU"; break;
+            case (vk::PhysicalDeviceType::eIntegratedGpu): device_type = "Integrated GPU"; break;
+            case (vk::PhysicalDeviceType::eVirtualGpu): device_type = "Virtual GPU"; break;
+            default: device_type = "Other";
+        };
 
-                auto extensions = device.enumerateDeviceExtensionProperties();
+        LOG_INFO("Device Name: {}", properties.deviceName);
+        LOG_INFO("Device Type: {}", device_type);
 
-                LOG_VERBOSE("Device can support extensions: ");
-                for (auto& extension : extensions)
-                    LOG_VERBOSE("\t{}", extension.extensionName);
-            }
+        auto extensions = gpu.enumerateDeviceExtensionProperties();
 
-            return device;
-
-        }
-
-        LOG_ERROR("Failed to get Physical Device");
-        return nullptr;
+        LOG_VERBOSE("Device can support extensions: ");
+        for (auto& extension : extensions)
+            LOG_VERBOSE("\t{}", extension.extensionName);
 
     }
 
-    vk::Device create_logical_device (vk::PhysicalDevice& device, vk::SurfaceKHR& surface) {
+    void Device::create_handle ( ) {
 
-        auto indices = get_queue_family_indices(device, surface);
+
+        auto indices = get_queue_family_indices(gpu, surface);
 
         auto queue_info = std::vector<vk::DeviceQueueCreateInfo>();
         auto queue_piority = 1.f;
@@ -114,12 +169,10 @@ namespace engine {
         };
 
         try {
-            auto result = device.createDevice(device_info);
+            handle = gpu.createDevice(device_info);
             LOG_INFO("Device was successfully abstracted.");
-            return result;
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to abstract Physical Device");
-            return nullptr;
         }
 
     }

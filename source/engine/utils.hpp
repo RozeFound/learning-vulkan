@@ -23,10 +23,10 @@ namespace engine {
         
 	};
 
-    QueueFamilyIndices get_queue_family_indices (vk::PhysicalDevice& device, vk::SurfaceKHR& surface);
+    QueueFamilyIndices get_queue_family_indices (const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface);
 
-    vk::Semaphore make_semaphore (vk::Device& device);
-    vk::Fence make_fence (vk::Device& device);
+    vk::Semaphore make_semaphore (const vk::Device& device);
+    vk::Fence make_fence (const vk::Device& device);
 
     uint32_t to_u32 (std::size_t value);
 

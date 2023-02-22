@@ -7,6 +7,8 @@
 #define VULKAN_HPP_NO_CONSTRUCTORS
 #include <vulkan/vulkan.hpp>
 
+#include "device.hpp"
+
 namespace engine {
 
     class SwapChain {
@@ -27,15 +29,11 @@ namespace engine {
         vk::RenderPass renderpass;
         vk::CommandPool command_pool;
 
-        vk::SurfaceKHR surface;
-        GLFWwindow* window;
-
-        vk::PhysicalDevice physical_device;
-        vk::Device device;
-
         vk::SurfaceCapabilitiesKHR capabilities;
         vk::SurfaceFormatKHR format;
         vk::Extent2D extent;
+
+        Device device;
 
         void make_framebuffers ( );
         void make_commandbuffers ( );
@@ -44,14 +42,14 @@ namespace engine {
         public:
 
         SwapChain ( ) = default;
-        SwapChain (vk::PhysicalDevice&, vk::Device&, vk::SurfaceKHR&, const vk::RenderPass&, vk::CommandPool&, GLFWwindow*);
+        SwapChain (Device& device, const vk::RenderPass&, vk::CommandPool&);
 
         void create_handle ( );
 
-        static vk::Extent2D query_extent (vk::PhysicalDevice&, vk::SurfaceKHR&, GLFWwindow*);
-        static vk::Extent2D query_extent (vk::SurfaceCapabilitiesKHR&, GLFWwindow*);
+        static vk::Extent2D query_extent (const vk::PhysicalDevice&, const vk::SurfaceKHR&, const GLFWwindow*);
+        static vk::Extent2D query_extent (vk::SurfaceCapabilitiesKHR&, const GLFWwindow*);
         
-        static vk::SurfaceFormatKHR query_format (vk::PhysicalDevice&, vk::SurfaceKHR&);
+        static vk::SurfaceFormatKHR query_format (const vk::PhysicalDevice&, const vk::SurfaceKHR&);
         
         constexpr const vk::SwapchainKHR& get_handle ( ) const { return handle; };
         constexpr std::vector<Frame>& get_frames ( ) { return frames; };

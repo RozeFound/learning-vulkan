@@ -8,7 +8,7 @@
 
 namespace engine {
 
-    PipeLine::PipeLine (vk::Device& device, const vk::SurfaceFormatKHR& format)
+    PipeLine::PipeLine (const vk::Device& device, const vk::SurfaceFormatKHR& format)
         : device(device), format(format) {
 
         auto binding_description = Vertex::get_binding_description();

@@ -6,7 +6,7 @@
 
 namespace engine {
 
-    Shader::Shader (vk::Device& device, std::filesystem::path path)
+    Shader::Shader (const vk::Device& device, std::filesystem::path path)
         : device(device) {
 
         LOG_INFO("Creating Shader...");

@@ -12,7 +12,7 @@ namespace engine {
         return VK_FALSE;
     }
 
-    vk::DebugUtilsMessengerEXT make_debug_messenger (vk::Instance& instance, vk::DispatchLoaderDynamic& dldi) {
+    vk::DebugUtilsMessengerEXT make_debug_messenger (const vk::Instance& instance, vk::DispatchLoaderDynamic& dldi) {
 
         using enum vk::DebugUtilsMessageTypeFlagBitsEXT;
         using enum vk::DebugUtilsMessageSeverityFlagBitsEXT;

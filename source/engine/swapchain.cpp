@@ -1,17 +1,18 @@
 #include <cstddef>
 #include <limits>
 
+#include "device.hpp"
 #include "utils.hpp"
 #include "swapchain.hpp"
 #include "logging.hpp"
 
 namespace engine {
 
-    SwapChain::SwapChain (vk::PhysicalDevice& physical_device, vk::Device& device, vk::SurfaceKHR& surface, const vk::RenderPass& renderpass, vk::CommandPool& command_pool, GLFWwindow* window) 
-        : physical_device(physical_device), device(device), surface(surface), renderpass(renderpass), command_pool(command_pool), window(window) {
+    SwapChain::SwapChain (Device& device, const vk::RenderPass& renderpass, vk::CommandPool& command_pool) 
+        : device(device), renderpass(renderpass), command_pool(command_pool) {
 
-        capabilities = physical_device.getSurfaceCapabilitiesKHR(surface);
-        format = query_format(physical_device, surface);
+        capabilities = device.get_gpu().getSurfaceCapabilitiesKHR(device.get_surface());
+        format = query_format(device.get_gpu(), device.get_surface());
 
         create_handle();
 
@@ -21,9 +22,9 @@ namespace engine {
 
     void SwapChain::create_handle ( ) {
 
-        auto modes = physical_device.getSurfacePresentModesKHR(surface);
+        auto modes = device.get_gpu().getSurfacePresentModesKHR(device.get_surface());
         auto format = get_format();
-        extent = query_extent(capabilities, window);
+        extent = query_extent(capabilities, device.get_window());
 
         auto present_mode = vk::PresentModeKHR::eFifo;
 
@@ -34,7 +35,7 @@ namespace engine {
 
         auto create_info = vk::SwapchainCreateInfoKHR {
             .flags = vk::SwapchainCreateFlagsKHR(),
-            .surface = surface, 
+            .surface = device.get_surface(), 
             .minImageCount = capabilities.minImageCount,
             .imageFormat = format.format,
             .imageColorSpace = format.colorSpace,
@@ -48,7 +49,7 @@ namespace engine {
             .clipped = VK_TRUE
         };      
 
-        auto indices = get_queue_family_indices(physical_device, surface);
+        auto indices = get_queue_family_indices(device.get_gpu(), device.get_surface());
         uint32_t queue_family_indices[] = { indices.graphics_family.value(), indices.present_family.value() };
 
         if (indices.graphics_family != indices.present_family) {
@@ -59,7 +60,7 @@ namespace engine {
 
         try {
             if (handle) create_info.oldSwapchain = handle;
-            auto result = device.createSwapchainKHR(create_info);
+            auto result = device.get_handle().createSwapchainKHR(create_info);
             if (handle) destroy();
             handle = result;
             LOG_INFO("Successfully created SwapChain");
@@ -75,20 +76,20 @@ namespace engine {
 
         LOG_INFO("Destroying Swapchain Frames");
         for (const auto& frame : frames) {
-            device.destroyFramebuffer(frame.buffer);
-            device.destroyImageView(frame.view);
+            device.get_handle().destroyFramebuffer(frame.buffer);
+            device.get_handle().destroyImageView(frame.view);
 
-            device.destroySemaphore(frame.image_available);
-            device.destroySemaphore(frame.render_finished);
-            device.destroyFence(frame.in_flight);
+            device.get_handle().destroySemaphore(frame.image_available);
+            device.get_handle().destroySemaphore(frame.render_finished);
+            device.get_handle().destroyFence(frame.in_flight);
         }
             
         LOG_INFO("Destroying Swapchain");
-        device.destroySwapchainKHR(handle);
+        device.get_handle().destroySwapchainKHR(handle);
 
     }
 
-    vk::SurfaceFormatKHR SwapChain::query_format (vk::PhysicalDevice& physical_device, vk::SurfaceKHR& surface) {
+    vk::SurfaceFormatKHR SwapChain::query_format (const vk::PhysicalDevice& physical_device, const vk::SurfaceKHR& surface) {
 
         auto formats =  physical_device.getSurfaceFormatsKHR(surface);
 
@@ -101,13 +102,13 @@ namespace engine {
 
     }
 
-    vk::Extent2D SwapChain::query_extent (vk::SurfaceCapabilitiesKHR& capabilities, GLFWwindow* window) {
+    vk::Extent2D SwapChain::query_extent (vk::SurfaceCapabilitiesKHR& capabilities, const GLFWwindow* window) {
 
         if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) 
             return capabilities.currentExtent;
 
         int width, height;
-        glfwGetFramebufferSize(window, &width, &height);
+        glfwGetFramebufferSize(const_cast<GLFWwindow*>(window), &width, &height);
 
         auto min_width = std::max(capabilities.minImageExtent.width, static_cast<uint32_t>(width));
         auto min_height = std::max(capabilities.minImageExtent.height, static_cast<uint32_t>(height));
@@ -119,7 +120,7 @@ namespace engine {
 
     }
 
-    vk::Extent2D SwapChain::query_extent (vk::PhysicalDevice& physical_device, vk::SurfaceKHR& surface, GLFWwindow* window) {
+    vk::Extent2D SwapChain::query_extent (const vk::PhysicalDevice& physical_device, const vk::SurfaceKHR& surface, const GLFWwindow* window) {
 
             auto capabilities = physical_device.getSurfaceCapabilitiesKHR(surface);
             return query_extent(capabilities, window);
@@ -128,7 +129,7 @@ namespace engine {
 
     void SwapChain::make_frames ( ) {
 
-        auto images = device.getSwapchainImagesKHR(handle);
+        auto images = device.get_handle().getSwapchainImagesKHR(handle);
         frames.resize(images.size());
 
         for (size_t i = 0; i < images.size(); i++) {
@@ -151,16 +152,16 @@ namespace engine {
             };
 
 			frames.at(i).image = images.at(i);
-			frames.at(i).view = device.createImageView(create_info);
+			frames.at(i).view = device.get_handle().createImageView(create_info);
 
 		};
 
         LOG_INFO("Created ImageView's for SwapChain");
 
         for (auto& frame : frames) {
-            frame.image_available = make_semaphore(device);
-            frame.render_finished = make_semaphore(device);
-            frame.in_flight = make_fence(device);
+            frame.image_available = make_semaphore(device.get_handle());
+            frame.render_finished = make_semaphore(device.get_handle());
+            frame.in_flight = make_fence(device.get_handle());
         }
 
         make_framebuffers();
@@ -184,7 +185,7 @@ namespace engine {
             };
 
             try {
-                frame.buffer = device.createFramebuffer(create_info);
+                frame.buffer = device.get_handle().createFramebuffer(create_info);
             } catch (vk::SystemError err) {
                 LOG_ERROR("Failed to create Framebuffer");
             }
@@ -204,7 +205,7 @@ namespace engine {
         };
 
         try {
-            auto buffers = device.allocateCommandBuffers(allocate_info);
+            auto buffers = device.get_handle().allocateCommandBuffers(allocate_info);
             for (std::size_t i = 0; i < frames.size(); i++)
                 frames.at(i).commands = buffers.at(i);
             LOG_INFO("Allocated Command Buffers");

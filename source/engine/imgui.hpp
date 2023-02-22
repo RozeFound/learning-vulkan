@@ -11,6 +11,7 @@
 #define VULKAN_HPP_NO_CONSTRUCTORS
 #include <vulkan/vulkan.hpp>
 
+#include "device.hpp"
 #include "pipeline.hpp"
 #include "swapchain.hpp"
 
@@ -24,15 +25,9 @@ namespace engine {
         std::vector<vk::CommandBuffer> command_buffers;
         std::vector<vk::Framebuffer> frame_buffers;
 
-        GLFWwindow* window;
-        vk::Instance instance;
-        vk::SurfaceKHR surface;
-
+        Device device;
         SwapChain swapchain;
         PipeLine pipeline;
-
-        vk::PhysicalDevice physical_device;
-        vk::Device device;
 
         uint32_t image_count;
 
@@ -48,7 +43,7 @@ namespace engine {
         public:
 
         ImGUI ( ) = default;
-        ImGUI (vk::PhysicalDevice&, vk::Device&, vk::Instance&, vk::SurfaceKHR&, SwapChain&, PipeLine&, GLFWwindow*);
+        ImGUI (Device&, SwapChain&, PipeLine&);
 
         vk::CommandBuffer& get_commands (uint32_t index, std::function<void()>);
 

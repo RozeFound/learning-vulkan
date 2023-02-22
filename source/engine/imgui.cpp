@@ -6,8 +6,8 @@
 
 namespace engine {
 
-    ImGUI::ImGUI (vk::PhysicalDevice& physical_device, vk::Device& device, vk::Instance& instance, vk::SurfaceKHR& surface, SwapChain& swapchain, PipeLine& pipeline, GLFWwindow* window)
-        : physical_device(physical_device), device(device), instance(instance), surface(surface), swapchain(swapchain), pipeline(pipeline), window(window) {
+    ImGUI::ImGUI (Device& device, SwapChain& swapchain, PipeLine& pipeline)
+        : device(device), swapchain(swapchain), pipeline(pipeline) {
 
         image_count = swapchain.get_frames().size();
  
@@ -27,14 +27,14 @@ namespace engine {
         ImGui::CreateContext();
         ImGui::StyleColorsDark();
 
-        auto indices = get_queue_family_indices(physical_device, surface);
-        auto graphics_queue = device.getQueue(indices.graphics_family.value(), 0);
+        auto indices = get_queue_family_indices(device.get_gpu(), device.get_surface());
+        auto graphics_queue = device.get_handle().getQueue(indices.graphics_family.value(), 0);
 
-        ImGui_ImplGlfw_InitForVulkan(window, true);
+        ImGui_ImplGlfw_InitForVulkan(const_cast<GLFWwindow*>(device.get_window()), true);
         auto init_info = ImGui_ImplVulkan_InitInfo {
-            .Instance = instance,
-            .PhysicalDevice = physical_device,
-            .Device = device,
+            .Instance = device.get_instance(),
+            .PhysicalDevice = device.get_gpu(),
+            .Device = device.get_handle(),
             .QueueFamily = indices.graphics_family.value(),
             .Queue = graphics_queue,
             .PipelineCache = nullptr,
@@ -60,10 +60,10 @@ namespace engine {
         io.FontDefault = robotoFont;
 
         const auto& command_buffer = command_buffers.at(1);
-        device.resetCommandPool(command_pool);
+        device.get_handle().resetCommandPool(command_pool);
 
-        auto indices = get_queue_family_indices(physical_device, surface);
-        auto graphics_queue = device.getQueue(indices.graphics_family.value(), 0);
+        auto indices = get_queue_family_indices(device.get_gpu(), device.get_surface());
+        auto graphics_queue = device.get_handle().getQueue(indices.graphics_family.value(), 0);
 
         auto begin_info = vk::CommandBufferBeginInfo {
             .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit
@@ -83,7 +83,7 @@ namespace engine {
             LOG_ERROR("Failed to create font texture");
         }
 
-        device.waitIdle();
+        device.get_handle().waitIdle();
         ImGui_ImplVulkan_DestroyFontUploadObjects();
 
     }
@@ -91,9 +91,9 @@ namespace engine {
     void ImGUI::destroy ( ) {
 
         for (const auto& buffer : frame_buffers)
-            device.destroyFramebuffer(buffer);
+            device.get_handle().destroyFramebuffer(buffer);
 
-        device.destroyCommandPool(command_pool);
+        device.get_handle().destroyCommandPool(command_pool);
 
         LOG_INFO("Destroying ImGUI");
         ImGui_ImplVulkan_Shutdown();
@@ -101,7 +101,7 @@ namespace engine {
 		ImGui::DestroyContext();
 
         LOG_INFO("Destroying Descriptor Pool");
-        device.destroyDescriptorPool(descriptor_pool);
+        device.get_handle().destroyDescriptorPool(descriptor_pool);
 
     }
 
@@ -151,7 +151,7 @@ namespace engine {
 
     void ImGUI::make_command_pool ( ) {
 
-        auto indices = get_queue_family_indices(physical_device, surface);
+        auto indices = get_queue_family_indices(device.get_gpu(), device.get_surface());
 
         auto create_info = vk::CommandPoolCreateInfo {
             .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
@@ -159,7 +159,7 @@ namespace engine {
         };
 
         try {
-            command_pool = device.createCommandPool(create_info);
+            command_pool = device.get_handle().createCommandPool(create_info);
             LOG_INFO("Successfully created Command Pool");
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to create Command Pool");
@@ -191,7 +191,7 @@ namespace engine {
         };
 
         try {
-            descriptor_pool = device.createDescriptorPool(create_info);
+            descriptor_pool = device.get_handle().createDescriptorPool(create_info);
             LOG_INFO("Successfully created Descriptor Pool");
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to create Descriptor Pool");
@@ -220,7 +220,7 @@ namespace engine {
             };
 
             try {
-                frame_buffers.at(i) = device.createFramebuffer(create_info);
+                frame_buffers.at(i) = device.get_handle().createFramebuffer(create_info);
             } catch (vk::SystemError err) {
                 LOG_ERROR("Failed to create Framebuffer");
             }
@@ -242,7 +242,7 @@ namespace engine {
         };
 
         try {
-            auto buffers = device.allocateCommandBuffers(allocate_info);
+            auto buffers = device.get_handle().allocateCommandBuffers(allocate_info);
             for (std::size_t i = 0; i < command_buffers.size(); i++)
                 command_buffers.at(i) = buffers.at(i);
             LOG_INFO("Allocated Command Buffers for ImGUI");

@@ -20,7 +20,7 @@ namespace engine {
         public:
 
         PipeLine ( ) = default;
-        PipeLine (vk::Device& device, const vk::SurfaceFormatKHR& format);
+        PipeLine (const vk::Device& device, const vk::SurfaceFormatKHR& format);
 
         constexpr const vk::Pipeline& get_handle ( ) const { return handle; };
         constexpr const vk::PipelineLayout& get_layout ( ) const { return layout; };

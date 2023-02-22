@@ -3,7 +3,6 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "instance.hpp"
 #include "device.hpp"
 #include "engine.hpp"
 #include "logging.hpp"
@@ -11,46 +10,9 @@
 
 namespace engine {
 
-    Engine::Engine (GLFWwindow* window) : window(window) {
+    Engine::Engine (GLFWwindow* window) {
 
         LOG_INFO("Creating Engine instance...");
-
-        make_instance();
-        make_device();
-        prepare();
-
-    }
-
-    Engine::~Engine ( ) {
-
-        device.waitIdle();
-
-        if (is_imgui_enabled) imgui.destroy();
-
-        LOG_INFO("Destroying Engine...");
-
-        if (debug) instance.destroyDebugUtilsMessengerEXT(debug_messenger, nullptr, dldi);
-
-        LOG_INFO("Destroying Command Pool");
-        device.destroyCommandPool(command_pool);
-
-        pipeline.destroy();
-        swapchain.destroy();
-
-        delete asset;
-
-        LOG_INFO("Destroying Device");
-        device.destroy();
-
-        LOG_INFO("Destroying Surface");
-        instance.destroySurfaceKHR(surface);
-        LOG_INFO("Destroying Instance");
-        instance.destroy();
-
-    }
-
-    void Engine::make_instance ( ) {
-
 
         if constexpr (debug) {
 
@@ -64,30 +26,38 @@ namespace engine {
 
         }
 
-        instance = create_instance();
+        device = Device(window);
 
         if constexpr (debug) {
-            dldi = vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
-            debug_messenger = make_debug_messenger(instance, dldi);
+            dldi = vk::DispatchLoaderDynamic(device.get_instance(), vkGetInstanceProcAddr);
+            debug_messenger = make_debug_messenger(device.get_instance(), dldi);
         }
 
-        VkSurfaceKHR c_surface;
+        auto indices = get_queue_family_indices(device.get_gpu(), device.get_surface());
+        graphics_queue = device.get_handle().getQueue(indices.graphics_family.value(), 0);
+        present_queue = device.get_handle().getQueue(indices.present_family.value(), 0);
 
-        if (glfwCreateWindowSurface(instance, window, nullptr, &c_surface) != VK_SUCCESS)
-            LOG_ERROR("Cannot abstract GLFW surface for Vulkan");
-
-        surface = c_surface;
+        prepare();
 
     }
 
-    void Engine::make_device ( ) {
+    Engine::~Engine ( ) {
 
-        physical_device = get_physical_device(instance);
-        device = create_logical_device(physical_device, surface);
+        device.get_handle().waitIdle();
 
-        auto indices = get_queue_family_indices(physical_device, surface);
-        graphics_queue = device.getQueue(indices.graphics_family.value(), 0);
-        present_queue = device.getQueue(indices.present_family.value(), 0);
+        if (is_imgui_enabled) imgui.destroy();
+
+        LOG_INFO("Destroying Engine...");
+
+        if (debug) device.get_instance().destroyDebugUtilsMessengerEXT(debug_messenger, nullptr, dldi);
+
+        LOG_INFO("Destroying Command Pool");
+        device.get_handle().destroyCommandPool(command_pool);
+
+        pipeline.destroy();
+        swapchain.destroy();
+
+        delete asset;
 
     }
 
@@ -95,14 +65,14 @@ namespace engine {
 
         make_command_pool();
 
-        pipeline = PipeLine(device, SwapChain::query_format(physical_device, surface));
-        swapchain = SwapChain(physical_device, device, surface, pipeline.get_renderpass(), command_pool, window);
-        if (is_imgui_enabled) imgui = ImGUI(physical_device, device, instance, surface, swapchain, pipeline, window);
+        pipeline = PipeLine(device.get_handle(), SwapChain::query_format(device.get_gpu(), device.get_surface()));
+        swapchain = SwapChain(device, pipeline.get_renderpass(), command_pool);
+        if (is_imgui_enabled) imgui = ImGUI(device, swapchain, pipeline);
 
         max_frames_in_flight = swapchain.get_frames().size();
         frame_number = 0;
 
-        asset = new Mesh(physical_device, device, surface);
+        asset = new Mesh(device);
 
     }
 
@@ -110,7 +80,7 @@ namespace engine {
 
         int width = 0, height = 0;
         while (width == 0 || height == 0) {
-            glfwGetFramebufferSize(window, &width, &height);
+            glfwGetFramebufferSize(const_cast<GLFWwindow*>(device.get_window()), &width, &height);
             glfwWaitEvents();
         }
 
@@ -118,7 +88,7 @@ namespace engine {
             && height == swapchain.get_extent().height)
             return;
 
-        device.waitIdle();
+        device.get_handle().waitIdle();
 
         swapchain.create_handle();
 
@@ -129,7 +99,7 @@ namespace engine {
 
     void Engine::make_command_pool ( ) {
 
-        auto indices = get_queue_family_indices(physical_device, surface);
+        auto indices = get_queue_family_indices(device.get_gpu(), device.get_surface());
 
         auto create_info = vk::CommandPoolCreateInfo {
             .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
@@ -137,7 +107,7 @@ namespace engine {
         };
 
         try {
-            command_pool = device.createCommandPool(create_info);
+            command_pool = device.get_handle().createCommandPool(create_info);
             LOG_INFO("Successfully created Command Pool");
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to create Command Pool");
@@ -213,14 +183,14 @@ namespace engine {
         constexpr auto timeout = std::numeric_limits<uint64_t>::max();
         const auto& frame = swapchain.get_frames().at(frame_number);
 
-        auto wait_result = device.waitForFences(frame.in_flight, VK_TRUE, timeout);
+        auto wait_result = device.get_handle().waitForFences(frame.in_flight, VK_TRUE, timeout);
 
-        auto image_result = device.acquireNextImageKHR(swapchain.get_handle(), timeout, frame.image_available);
+        auto image_result = device.get_handle().acquireNextImageKHR(swapchain.get_handle(), timeout, frame.image_available);
     
         if (image_result.result == vk::Result::eErrorOutOfDateKHR)
             { remake_swapchain(); return; }
 
-        device.resetFences(frame.in_flight);
+        device.get_handle().resetFences(frame.in_flight);
 
         frame.commands.reset();
 

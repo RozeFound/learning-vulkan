@@ -2,6 +2,7 @@
 
 #include <GLFW/glfw3.h>
 #include <functional>
+#include "device.hpp"
 #include "mesh.hpp"
 
 #define VULKAN_HPP_NO_CONSTRUCTORS
@@ -22,12 +23,7 @@ namespace engine {
         vk::DebugUtilsMessengerEXT debug_messenger;
         vk::DispatchLoaderDynamic dldi;
 
-        GLFWwindow* window;
-        vk::Instance instance;
-        vk::SurfaceKHR surface;
-
-        vk::PhysicalDevice physical_device;
-        vk::Device device;
+        Device device;
 
         ImGUI imgui;
         Mesh* asset;
@@ -40,9 +36,6 @@ namespace engine {
 
         vk::CommandPool command_pool;
 
-        void make_window ( );
-        void make_instance ( );
-        void make_device ( );
         void prepare ( );
 
         void remake_swapchain ( );
@@ -59,10 +52,6 @@ namespace engine {
         ~Engine ( );
 
         void draw (Scene& scene);
-
-        constexpr const auto& get_instance ( ) const { return instance; };
-        constexpr const auto get_devices ( ) const { return std::pair(physical_device, device); } ;
-        constexpr const auto& get_surface ( ) const { return surface; };
 
     };
 

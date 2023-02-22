@@ -3,7 +3,7 @@
 
 namespace engine {
 
-    QueueFamilyIndices get_queue_family_indices (vk::PhysicalDevice& device, vk::SurfaceKHR& surface) {
+    QueueFamilyIndices get_queue_family_indices (const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) {
 
         QueueFamilyIndices indices;
         auto queue_family_properties = device.getQueueFamilyProperties();
@@ -27,7 +27,7 @@ namespace engine {
 
     }
 
-    vk::Semaphore make_semaphore (vk::Device& device) {
+    vk::Semaphore make_semaphore (const vk::Device& device) {
 
         auto create_info = vk::SemaphoreCreateInfo {
             .flags = vk::SemaphoreCreateFlags()
@@ -42,7 +42,7 @@ namespace engine {
 
     }
 
-    vk::Fence make_fence (vk::Device& device) {
+    vk::Fence make_fence (const vk::Device& device) {
 
         auto create_info = vk::FenceCreateInfo {
             .flags = vk::FenceCreateFlagBits::eSignaled

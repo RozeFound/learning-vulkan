@@ -8,6 +8,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include "memory.hpp"
+#include "device.hpp"
 
 namespace engine {
 
@@ -56,9 +57,9 @@ namespace engine {
         std::vector<Vertex> vertices;
         Buffer vertex_buffer;
 
-        vk::Device device;
+        Device device;
 
-        Mesh (vk::PhysicalDevice& physical_device, vk::Device& device, vk::SurfaceKHR& surface);
+        Mesh (Device& device);
         ~Mesh( );
 
     };

@@ -22,7 +22,7 @@ namespace engine {
     VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT, 
         VkDebugUtilsMessageTypeFlagsEXT, const VkDebugUtilsMessengerCallbackDataEXT*,void*);
 
-    vk::DebugUtilsMessengerEXT make_debug_messenger (vk::Instance&, vk::DispatchLoaderDynamic&);
+    vk::DebugUtilsMessengerEXT make_debug_messenger (const vk::Instance&, vk::DispatchLoaderDynamic&);
 
     void log(std::string_view message, log_level level);
 
