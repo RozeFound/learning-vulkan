@@ -19,11 +19,7 @@ namespace engine {
 
     class ImGUI {
 
-        vk::CommandPool command_pool; 
         vk::DescriptorPool descriptor_pool;
-
-        std::vector<vk::CommandBuffer> command_buffers;
-        std::vector<vk::Framebuffer> frame_buffers;
 
         Device device;
         SwapChain swapchain;
@@ -34,18 +30,14 @@ namespace engine {
         void init_imgui ( );
         void init_font ( );
 
-        void make_command_pool ( );
         void make_descriptor_pool ( );
-
-        void make_framebuffers ( );
-        void make_command_buffers ( );
 
         public:
 
         ImGUI ( ) = default;
         ImGUI (Device&, SwapChain&, PipeLine&);
 
-        vk::CommandBuffer& get_commands (uint32_t index, std::function<void()>);
+        void draw (vk::CommandBuffer&, std::function<void()>);
 
         void destroy ( );
 

@@ -117,7 +117,7 @@ namespace engine {
 
     void Engine::record_draw_commands (uint32_t index, Scene& scene) {
 
-        const auto& command_buffer = swapchain.get_frames().at(index).commands;
+        auto& command_buffer = swapchain.get_frames().at(index).commands;
 
         auto begin_info = vk::CommandBufferBeginInfo();
         try {
@@ -168,6 +168,7 @@ namespace engine {
 
         }
 
+        imgui.draw(command_buffer, on_render);
         command_buffer.endRenderPass();
 
         try {
@@ -197,19 +198,14 @@ namespace engine {
         record_draw_commands(image_result.value, scene);
         
         vk::PipelineStageFlags wait_stages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
-        auto command_buffers = std::vector { frame.commands };
 
-        if (is_imgui_enabled) {
-            auto& imgui_command_buffer = imgui.get_commands(image_result.value, on_render);
-            command_buffers.push_back(imgui_command_buffer);
-        }
 
         auto submit_info = vk::SubmitInfo {
             .waitSemaphoreCount = 1,
             .pWaitSemaphores = &frame.image_available,
             .pWaitDstStageMask = wait_stages,
-            .commandBufferCount = static_cast<uint32_t>(command_buffers.size()),
-            .pCommandBuffers = command_buffers.data(),
+            .commandBufferCount = 1,
+            .pCommandBuffers = &frame.commands,
             .signalSemaphoreCount = 1,
             .pSignalSemaphores = &frame.render_finished
         };

@@ -11,11 +11,7 @@ namespace engine {
 
         image_count = swapchain.get_frames().size();
  
-        make_command_pool();
         make_descriptor_pool();
-
-        make_framebuffers();
-        make_command_buffers();
 
         init_imgui();
         init_font();
@@ -59,11 +55,21 @@ namespace engine {
             sizeof(font), 16.0f, &font_config);
         io.FontDefault = robotoFont;
 
-        const auto& command_buffer = command_buffers.at(1);
-        device.get_handle().resetCommandPool(command_pool);
-
         auto indices = get_queue_family_indices(device.get_gpu(), device.get_surface());
-        auto graphics_queue = device.get_handle().getQueue(indices.graphics_family.value(), 0);
+        auto create_info = vk::CommandPoolCreateInfo {
+            .flags = vk::CommandPoolCreateFlagBits::eTransient,
+            .queueFamilyIndex = indices.transfer_family.value()
+        };
+        auto command_pool = device.get_handle().createCommandPool(create_info);
+
+        auto allocate_info = vk::CommandBufferAllocateInfo {
+            .commandPool = command_pool,
+            .level = vk::CommandBufferLevel::ePrimary,
+            .commandBufferCount = 1,
+        };
+
+        auto command_buffer = device.get_handle().allocateCommandBuffers(allocate_info).at(0);
+        auto transit_queue = device.get_handle().getQueue(indices.transfer_family.value(), 0);
 
         auto begin_info = vk::CommandBufferBeginInfo {
             .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit
@@ -78,22 +84,18 @@ namespace engine {
                 .commandBufferCount = 1,
                 .pCommandBuffers = &command_buffer
             };
-            graphics_queue.submit(submit_info);            
+            transit_queue.submit(submit_info);            
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to create font texture");
         }
 
         device.get_handle().waitIdle();
         ImGui_ImplVulkan_DestroyFontUploadObjects();
+        device.get_handle().destroyCommandPool(command_pool);
 
     }
 
     void ImGUI::destroy ( ) {
-
-        for (const auto& buffer : frame_buffers)
-            device.get_handle().destroyFramebuffer(buffer);
-
-        device.get_handle().destroyCommandPool(command_pool);
 
         LOG_INFO("Destroying ImGUI");
         ImGui_ImplVulkan_Shutdown();
@@ -105,65 +107,16 @@ namespace engine {
 
     }
 
-    vk::CommandBuffer& ImGUI::get_commands (uint32_t index, std::function<void()> func) {
+    void ImGUI::draw (vk::CommandBuffer& command_buffer, std::function<void()> func) {
 
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        auto& command_buffer = command_buffers.at(index);
-
-        auto begin_info = vk::CommandBufferBeginInfo();
-        try {
-            command_buffer.begin(begin_info);
-        } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to begin command record for ImGUI");
-        }
-
-        auto clear_color = vk::ClearValue { std::array {.2f, .2f, .2f, 1.f} };
-
-        auto renderpass_info = vk::RenderPassBeginInfo {
-            .renderPass = pipeline.get_renderpass(),
-            .framebuffer = frame_buffers.at(index),
-            .renderArea = {{0, 0}, swapchain.get_extent()},
-            .clearValueCount = 1,
-            .pClearValues = &clear_color
-        };
-
-        command_buffer.beginRenderPass(renderpass_info, vk::SubpassContents::eInline);
-
         if (func != nullptr) func();
 
         ImGui::Render();
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command_buffer);
-
-        command_buffer.endRenderPass();
-
-        try {
-            command_buffer.end();
-        } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to record command buffer for ImGUI");
-        }
-
-        return command_buffer;
-
-    }
-
-    void ImGUI::make_command_pool ( ) {
-
-        auto indices = get_queue_family_indices(device.get_gpu(), device.get_surface());
-
-        auto create_info = vk::CommandPoolCreateInfo {
-            .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-            .queueFamilyIndex = indices.graphics_family.value()
-        };
-
-        try {
-            command_pool = device.get_handle().createCommandPool(create_info);
-            LOG_INFO("Successfully created Command Pool");
-        } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to create Command Pool");
-        }
 
     }
 
@@ -195,59 +148,6 @@ namespace engine {
             LOG_INFO("Successfully created Descriptor Pool");
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to create Descriptor Pool");
-        }
-
-    }
-
-    void ImGUI::make_framebuffers ( ) {
-
-        frame_buffers.resize(image_count);
-
-        for (std::size_t i = 0; i < frame_buffers.size(); i++) {
-
-            const auto& frame = swapchain.get_frames().at(i);
-
-            auto attachments = std::vector { frame.view };
-
-            auto create_info = vk::FramebufferCreateInfo {
-                .flags = vk::FramebufferCreateFlags(),
-                .renderPass = pipeline.get_renderpass(),
-                .attachmentCount = static_cast<uint32_t>(attachments.size()),
-                .pAttachments = attachments.data(),
-                .width = swapchain.get_extent().width,
-                .height = swapchain.get_extent().height,
-                .layers = 1
-            };
-
-            try {
-                frame_buffers.at(i) = device.get_handle().createFramebuffer(create_info);
-            } catch (vk::SystemError err) {
-                LOG_ERROR("Failed to create Framebuffer");
-            }
-
-        }
-
-        LOG_INFO("Created buffers for frames");
-
-    }
-
-    void ImGUI::make_command_buffers ( ) {
-
-        command_buffers.resize(image_count);
-
-        auto allocate_info = vk::CommandBufferAllocateInfo {
-            .commandPool = command_pool,
-            .level = vk::CommandBufferLevel::ePrimary,
-            .commandBufferCount = image_count,
-        };
-
-        try {
-            auto buffers = device.get_handle().allocateCommandBuffers(allocate_info);
-            for (std::size_t i = 0; i < command_buffers.size(); i++)
-                command_buffers.at(i) = buffers.at(i);
-            LOG_INFO("Allocated Command Buffers for ImGUI");
-        } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to allocate Command Buffers for ImGUI");
         }
 
     }

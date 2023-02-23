@@ -18,7 +18,7 @@ namespace engine {
     class Engine {
 
         uint32_t max_frames_in_flight, frame_number;
-        const bool is_imgui_enabled = false;
+        const bool is_imgui_enabled = true;
 
         vk::DebugUtilsMessengerEXT debug_messenger;
         vk::DispatchLoaderDynamic dldi;
