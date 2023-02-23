@@ -95,7 +95,7 @@ namespace engine {
             .pDepthStencilState = nullptr,
             .pColorBlendState = &color_blend_info,
             .pDynamicState = &dynamic_state_info,
-            .layout = layout,
+            .layout = pipeline_layout,
             .renderPass = renderpass,
             .subpass = 0,
             .basePipelineHandle = nullptr,
@@ -115,6 +115,26 @@ namespace engine {
 
     void PipeLine::create_layout ( ) {
 
+        auto binding_info = vk::DescriptorSetLayoutBinding {
+            .binding = 0,
+            .descriptorType = vk::DescriptorType::eUniformBuffer,
+            .descriptorCount = 1,
+            .stageFlags = vk::ShaderStageFlagBits::eVertex,
+        };
+
+        auto descriptor_set_info = vk::DescriptorSetLayoutCreateInfo {
+            .flags = vk::DescriptorSetLayoutCreateFlags(),
+            .bindingCount = 1,
+            .pBindings = &binding_info
+        };
+
+        try {
+            descriptor_set_layout = device.createDescriptorSetLayout(descriptor_set_info);
+            LOG_INFO("Created DescriptorSet Pipeline layout");
+        } catch (vk::SystemError error) {
+            LOG_ERROR("Failed to create DescriptorSet Pipeline layout");
+        }
+
         auto pushconstant_info = vk::PushConstantRange {
             .stageFlags = vk::ShaderStageFlagBits::eVertex,
             .size = sizeof(glm::mat4x4)
@@ -122,14 +142,14 @@ namespace engine {
 
         auto create_info = vk::PipelineLayoutCreateInfo {
             .flags = vk::PipelineLayoutCreateFlags(),
-            .setLayoutCount = 0,
-            .pSetLayouts = nullptr,
+            .setLayoutCount = 1,
+            .pSetLayouts = &descriptor_set_layout,
             .pushConstantRangeCount = 1,
             .pPushConstantRanges = &pushconstant_info
         };
 
         try {
-            layout = device.createPipelineLayout(create_info);
+            pipeline_layout = device.createPipelineLayout(create_info);
             LOG_INFO("Created PipeLine Layout");
         } catch (vk::SystemError) {
             LOG_ERROR("Failed to create PipeLine Layout");
@@ -193,7 +213,8 @@ namespace engine {
 
         LOG_INFO("Destroying Pipeline");
         device.destroyRenderPass(renderpass);
-        device.destroyPipelineLayout(layout);
+        device.destroyDescriptorSetLayout(descriptor_set_layout);
+        device.destroyPipelineLayout(pipeline_layout);
         device.destroyPipeline(handle);
 
     }

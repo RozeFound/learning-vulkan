@@ -145,9 +145,9 @@ namespace engine {
 
         try {
             descriptor_pool = device.get_handle().createDescriptorPool(create_info);
-            LOG_INFO("Successfully created Descriptor Pool");
+            LOG_INFO("Successfully created Descriptor Pool for ImGUI");
         } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to create Descriptor Pool");
+            LOG_ERROR("Failed to create Descriptor Pool for ImGUI");
         }
 
     }

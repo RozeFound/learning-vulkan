@@ -3,13 +3,21 @@
 #include <vector>
 
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
 
 #define VULKAN_HPP_NO_CONSTRUCTORS
 #include <vulkan/vulkan.hpp>
 
 #include "device.hpp"
+#include "memory.hpp"
 
 namespace engine {
+
+    struct UniformBufferObject {
+        glm::mat4x4 model;
+        glm::mat4x4 view;
+        glm::mat4x4 projection;
+    };
 
     class SwapChain {
 
@@ -18,6 +26,9 @@ namespace engine {
             vk::ImageView view;
             vk::Framebuffer buffer;
             vk::CommandBuffer commands;
+            vk::DescriptorSet descriptor_set;
+
+            Buffer uniform_buffer;
 
             vk::Semaphore image_available;
             vk::Semaphore render_finished;
@@ -27,7 +38,6 @@ namespace engine {
         vk::SwapchainKHR handle;
         std::vector<Frame> frames;
         vk::RenderPass renderpass;
-        vk::CommandPool command_pool;
 
         vk::SurfaceCapabilitiesKHR capabilities;
         vk::SurfaceFormatKHR format;
@@ -35,16 +45,18 @@ namespace engine {
 
         Device device;
 
-        void make_framebuffers ( );
-        void make_commandbuffers ( );
         void make_frames ( );
+        void make_framebuffers ( );
 
         public:
 
         SwapChain ( ) = default;
-        SwapChain (Device& device, const vk::RenderPass&, vk::CommandPool&);
+        SwapChain (Device& device, const vk::RenderPass&);
 
         void create_handle ( );
+
+        void make_commandbuffers (vk::CommandPool&);
+        void make_descriptor_sets (vk::DescriptorPool&, const vk::DescriptorSetLayout&);
 
         static vk::Extent2D query_extent (const vk::PhysicalDevice&, const vk::SurfaceKHR&, const GLFWwindow*);
         static vk::Extent2D query_extent (vk::SurfaceCapabilitiesKHR&, const GLFWwindow*);

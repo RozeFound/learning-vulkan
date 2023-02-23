@@ -35,12 +35,16 @@ namespace engine {
         vk::Queue present_queue;
 
         vk::CommandPool command_pool;
+        vk::DescriptorPool descriptor_pool;
 
         void prepare ( );
+        void prepare_frame (uint32_t index);
 
         void remake_swapchain ( );
 
         void make_command_pool ( );
+        void make_descriptor_pool ( );
+        
         void record_draw_commands (uint32_t index, Scene& scene);
 
     public:

@@ -53,6 +53,8 @@ namespace engine {
 
         LOG_INFO("Destroying Command Pool");
         device.get_handle().destroyCommandPool(command_pool);
+        LOG_INFO("Destroying Descriptor Pool");
+        device.get_handle().destroyDescriptorPool(descriptor_pool);
 
         pipeline.destroy();
         swapchain.destroy();
@@ -66,10 +68,16 @@ namespace engine {
         make_command_pool();
 
         pipeline = PipeLine(device.get_handle(), SwapChain::query_format(device.get_gpu(), device.get_surface()));
-        swapchain = SwapChain(device, pipeline.get_renderpass(), command_pool);
+
+        swapchain = SwapChain(device, pipeline.get_renderpass());
+        max_frames_in_flight = swapchain.get_frames().size();
+        make_descriptor_pool();
+
+        swapchain.make_commandbuffers(command_pool);
+        swapchain.make_descriptor_sets(descriptor_pool, pipeline.get_descriptor_set_layout());
+
         if (is_imgui_enabled) imgui = ImGUI(device, swapchain, pipeline);
 
-        max_frames_in_flight = swapchain.get_frames().size();
         frame_number = 0;
 
         asset = new Mesh(device);
@@ -115,6 +123,48 @@ namespace engine {
 
     }
 
+    void Engine::make_descriptor_pool ( ) {
+
+        auto pool_size = vk::DescriptorPoolSize {
+            .type = vk::DescriptorType::eUniformBuffer,
+            .descriptorCount = max_frames_in_flight
+		};
+
+        auto create_info = vk::DescriptorPoolCreateInfo {
+            .flags = vk::DescriptorPoolCreateFlags(),
+            .maxSets = max_frames_in_flight,
+            .poolSizeCount = 1,
+            .pPoolSizes = &pool_size
+        };
+
+        try {
+            descriptor_pool = device.get_handle().createDescriptorPool(create_info);
+            LOG_INFO("Successfully created Descriptor Pool");
+        } catch (vk::SystemError err) {
+            LOG_ERROR("Failed to create Descriptor Pool");
+        }
+
+    }
+
+    void Engine::prepare_frame (uint32_t index) {
+
+        auto& frame = swapchain.get_frames().at(index);
+
+        glm::vec3 eye = { 2.0f, 2.0f, -1.0f };
+        glm::vec3 center = { 0.0f, 0.0f, 0.0f };
+        glm::vec3 up = { 0.0f, 0.0f, -1.0f };
+
+        auto aspect = static_cast<float>(swapchain.get_extent().width) / static_cast<float>(swapchain.get_extent().height);
+
+        auto ubo = UniformBufferObject {
+            .view = glm::lookAt(eye, center, up),
+            .projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 10.0f)
+        }; ubo.projection[1][1] *= -1; frame.uniform_buffer.write(&ubo);
+
+       frame.commands.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_pipeline_layout(), 0, 1, &frame.descriptor_set,0, nullptr);
+
+    }
+
     void Engine::record_draw_commands (uint32_t index, Scene& scene) {
 
         auto& command_buffer = swapchain.get_frames().at(index).commands;
@@ -140,7 +190,8 @@ namespace engine {
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get_handle());
 
         auto offsets = std::array<vk::DeviceSize, 1> {}; 
-        command_buffer.bindVertexBuffers(0, 1, &asset->vertex_buffer.buffer, offsets.data());
+        command_buffer.bindVertexBuffers(0, 1, &asset->vertex_buffer.get_handle(), offsets.data());
+
 
         auto viewport = vk::Viewport {
             .width = static_cast<float>(swapchain.get_extent().width),
@@ -157,11 +208,13 @@ namespace engine {
 
         command_buffer.setScissor(0, 1, &scissor);
 
+        prepare_frame(index);
+
         for (const auto& position : scene.triangle_positions) {
 
             auto matrix = glm::translate(glm::mat4x4(1.f), position);
 
-            command_buffer.pushConstants(pipeline.get_layout(), 
+            command_buffer.pushConstants(pipeline.get_pipeline_layout(), 
                 vk::ShaderStageFlagBits::eVertex, 0, sizeof(matrix), &matrix);
 
             command_buffer.draw(to_u32(asset->vertices.size()), 1, 0, 0);

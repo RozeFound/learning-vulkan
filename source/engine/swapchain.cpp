@@ -1,22 +1,18 @@
 #include <cstddef>
 #include <limits>
 
-#include "device.hpp"
 #include "utils.hpp"
 #include "swapchain.hpp"
 #include "logging.hpp"
 
 namespace engine {
 
-    SwapChain::SwapChain (Device& device, const vk::RenderPass& renderpass, vk::CommandPool& command_pool) 
-        : device(device), renderpass(renderpass), command_pool(command_pool) {
+    SwapChain::SwapChain (Device& device, const vk::RenderPass& renderpass) : device(device), renderpass(renderpass) {
 
         capabilities = device.get_gpu().getSurfaceCapabilitiesKHR(device.get_surface());
         format = query_format(device.get_gpu(), device.get_surface());
 
         create_handle();
-
-        make_commandbuffers();
 
     }
 
@@ -158,7 +154,7 @@ namespace engine {
 
         LOG_INFO("Created ImageView's for SwapChain");
 
-        for (auto& frame : frames) {
+        for (auto& frame : frames) {          
             frame.image_available = make_semaphore(device.get_handle());
             frame.render_finished = make_semaphore(device.get_handle());
             frame.in_flight = make_fence(device.get_handle());
@@ -196,7 +192,7 @@ namespace engine {
 
     }
 
-    void SwapChain::make_commandbuffers ( ) {
+    void SwapChain::make_commandbuffers (vk::CommandPool& command_pool) {
         
         auto allocate_info = vk::CommandBufferAllocateInfo {
             .commandPool = command_pool,
@@ -211,6 +207,50 @@ namespace engine {
             LOG_INFO("Allocated Command Buffers");
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to allocate Command Buffers");
+        }
+
+    }
+
+    void SwapChain::make_descriptor_sets (vk::DescriptorPool& descriptor_pool, const vk::DescriptorSetLayout& layout) {
+
+        auto layouts = std::vector(frames.size(), layout);
+
+        auto allocate_info = vk::DescriptorSetAllocateInfo {
+            .descriptorPool = descriptor_pool,
+            .descriptorSetCount = to_u32(frames.size()),
+            .pSetLayouts = layouts.data()
+        };
+
+        try {
+            auto descriptor_sets = device.get_handle().allocateDescriptorSets(allocate_info);
+            for (std::size_t i = 0; i < frames.size(); i++)
+                frames.at(i).descriptor_set = descriptor_sets.at(i);
+            LOG_INFO("Allocated DescriptorSet's");
+        } catch (vk::SystemError err) {
+            LOG_ERROR("Failed to allocate DescriptorSet's");
+        }
+
+        for (auto& frame : frames) {
+
+            frame.uniform_buffer = Buffer(device, sizeof(UniformBufferObject), vk::BufferUsageFlagBits::eUniformBuffer);  
+
+            auto buffer_info = vk::DescriptorBufferInfo {
+                .buffer = frame.uniform_buffer.get_handle(),
+                .offset = 0,
+                .range = sizeof(UniformBufferObject)
+            };
+
+            auto write_info = vk::WriteDescriptorSet {
+                .dstSet = frame.descriptor_set,
+                .dstBinding = 0,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = vk::DescriptorType::eUniformBuffer,
+                .pBufferInfo = &buffer_info
+            };
+
+            device.get_handle().updateDescriptorSets(1, &write_info, 0, nullptr);
+
         }
 
     }

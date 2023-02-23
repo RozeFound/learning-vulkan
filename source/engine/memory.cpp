@@ -23,7 +23,37 @@ namespace engine {
 
     }
 
-    Buffer create_buffer (Device& device, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags flags) {
+    Buffer::Buffer (Device& device, std::size_t size, vk::BufferUsageFlags usage, bool device_local) 
+        : device(device), size(size), device_local(device_local) {
+
+        using enum vk::MemoryPropertyFlagBits;
+        using enum vk::BufferUsageFlagBits;
+
+        if (device_local) {
+
+            create_buffer(eTransferSrc, eHostVisible | eHostCoherent);  
+            create_buffer(eTransferDst | usage, eDeviceLocal);
+        
+        } else {
+            create_buffer(usage, eHostVisible | eHostCoherent);
+            data_location = device.get_handle().mapMemory(memory, 0, size);
+        }
+
+    }
+
+    void Buffer::destroy ( ) {
+
+        if (device_local) {
+            device.get_handle().destroyBuffer(staging_handle);
+            device.get_handle().freeMemory(staging_memory);
+        } else device.get_handle().unmapMemory(memory);
+
+        device.get_handle().destroyBuffer(handle);
+        device.get_handle().freeMemory(memory);
+
+    }
+
+    void Buffer::create_buffer (vk::BufferUsageFlags usage, vk::MemoryPropertyFlags flags) {
 
         auto create_info = vk::BufferCreateInfo {
             .flags = vk::BufferCreateFlags(),
@@ -43,17 +73,19 @@ namespace engine {
             };
 
             auto memory = device.get_handle().allocateMemory(allocate_info);
-            device.get_handle().bindBufferMemory(buffer, memory, 0);
+            device.get_handle().bindBufferMemory(buffer, memory, 0);  
 
-            return {buffer, memory};
+            if (usage & vk::BufferUsageFlagBits::eTransferSrc) {
+                staging_handle = buffer; staging_memory = memory;
+            } else { handle = buffer; this->memory = memory; };
+
         } catch (vk::SystemError) {
             LOG_ERROR("Failed to create buffer");
-            return {nullptr, nullptr};
         }
-        
+
     }
 
-    void copy_buffer (Device& device, vk::Buffer source, vk::Buffer destination, vk::DeviceSize size) {
+    void Buffer::copy_buffer (vk::Buffer& source, vk::Buffer& destination) {
 
         auto indices = get_queue_family_indices(device.get_gpu(), device.get_surface());
         auto create_info = vk::CommandPoolCreateInfo {
