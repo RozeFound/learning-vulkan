@@ -7,6 +7,7 @@
 #include "engine.hpp"
 #include "logging.hpp"
 #include "utils.hpp"
+#include "shaders.hpp"
 
 namespace engine {
 
@@ -56,6 +57,11 @@ namespace engine {
         LOG_INFO("Destroying Descriptor Pool");
         device.get_handle().destroyDescriptorPool(descriptor_pool);
 
+        for (auto& frame : swapchain.get_frames()) {
+            frame.uniform_buffer.destroy();
+            frame.storage_buffer.destroy();
+        }
+
         pipeline.destroy();
         swapchain.destroy();
 
@@ -72,6 +78,11 @@ namespace engine {
         swapchain = SwapChain(device, pipeline.get_renderpass());
         max_frames_in_flight = swapchain.get_frames().size();
         make_descriptor_pool();
+
+        for (auto& frame : swapchain.get_frames()) {
+            frame.uniform_buffer = Buffer(device, sizeof(UniformBufferObject), vk::BufferUsageFlagBits::eUniformBuffer);  
+            frame.storage_buffer = Buffer(device, 1024 * sizeof(glm::mat4x4), vk::BufferUsageFlagBits::eStorageBuffer);
+        }
 
         swapchain.make_commandbuffers(command_pool);
         swapchain.make_descriptor_sets(descriptor_pool, pipeline.get_descriptor_set_layout());
@@ -125,16 +136,22 @@ namespace engine {
 
     void Engine::make_descriptor_pool ( ) {
 
-        auto pool_size = vk::DescriptorPoolSize {
-            .type = vk::DescriptorType::eUniformBuffer,
-            .descriptorCount = max_frames_in_flight
-		};
+        auto pool_sizes = std::array {
+            vk::DescriptorPoolSize {
+                .type = vk::DescriptorType::eUniformBuffer,
+                .descriptorCount = max_frames_in_flight
+            },
+            vk::DescriptorPoolSize {
+                .type = vk::DescriptorType::eStorageBuffer,
+                .descriptorCount = max_frames_in_flight
+            }
+        };
 
         auto create_info = vk::DescriptorPoolCreateInfo {
             .flags = vk::DescriptorPoolCreateFlags(),
             .maxSets = max_frames_in_flight,
-            .poolSizeCount = 1,
-            .pPoolSizes = &pool_size
+            .poolSizeCount = to_u32(pool_sizes.size()),
+            .pPoolSizes = pool_sizes.data()
         };
 
         try {
@@ -146,7 +163,7 @@ namespace engine {
 
     }
 
-    void Engine::prepare_frame (uint32_t index) {
+    void Engine::prepare_frame (uint32_t index, Scene& scene) {
 
         auto& frame = swapchain.get_frames().at(index);
 
@@ -161,13 +178,20 @@ namespace engine {
             .projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 10.0f)
         }; ubo.projection[1][1] *= -1; frame.uniform_buffer.write(&ubo);
 
-       frame.commands.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_pipeline_layout(), 0, 1, &frame.descriptor_set,0, nullptr);
+        auto positions = std::vector<glm::mat4x4>();
+        positions.reserve(scene.triangle_positions.size());
+
+        for (const auto& position : scene.triangle_positions)
+            positions.push_back(glm::translate(glm::mat4x4(1.f), position));
+
+        frame.storage_buffer.write(positions.data(), positions.size() * sizeof(glm::mat4x4));
 
     }
 
     void Engine::record_draw_commands (uint32_t index, Scene& scene) {
 
-        auto& command_buffer = swapchain.get_frames().at(index).commands;
+        auto& frame = swapchain.get_frames().at(index);
+        auto& command_buffer = frame.commands;
 
         auto begin_info = vk::CommandBufferBeginInfo();
         try {
@@ -188,10 +212,10 @@ namespace engine {
 
         command_buffer.beginRenderPass(renderpass_info, vk::SubpassContents::eInline);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get_handle());
+        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_pipeline_layout(), 0, 1, &frame.descriptor_set, 0, nullptr);
 
         auto offsets = std::array<vk::DeviceSize, 1> {}; 
         command_buffer.bindVertexBuffers(0, 1, &asset->vertex_buffer.get_handle(), offsets.data());
-
 
         auto viewport = vk::Viewport {
             .width = static_cast<float>(swapchain.get_extent().width),
@@ -208,20 +232,12 @@ namespace engine {
 
         command_buffer.setScissor(0, 1, &scissor);
 
-        prepare_frame(index);
+        prepare_frame(index, scene);
+        auto vertex_count = to_u32(asset->vertices.size());
+        auto instance_count = to_u32(scene.triangle_positions.size());
+        command_buffer.draw(vertex_count,instance_count, 0, 0);
 
-        for (const auto& position : scene.triangle_positions) {
-
-            auto matrix = glm::translate(glm::mat4x4(1.f), position);
-
-            command_buffer.pushConstants(pipeline.get_pipeline_layout(), 
-                vk::ShaderStageFlagBits::eVertex, 0, sizeof(matrix), &matrix);
-
-            command_buffer.draw(to_u32(asset->vertices.size()), 1, 0, 0);
-
-        }
-
-        imgui.draw(command_buffer, on_render);
+        if (is_imgui_enabled) imgui.draw(command_buffer, on_render);
         command_buffer.endRenderPass();
 
         try {

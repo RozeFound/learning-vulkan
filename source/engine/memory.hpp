@@ -23,7 +23,7 @@ namespace engine {
         bool device_local;
 
         void create_buffer (vk::BufferUsageFlags, vk::MemoryPropertyFlags);
-        void copy_buffer (vk::Buffer& src, vk::Buffer& dst);
+        void copy_buffer (vk::Buffer& src, vk::Buffer& dst, std::size_t size);
 
         public:
 
@@ -32,7 +32,9 @@ namespace engine {
 
         void destroy ( ); 
 
-        void write (auto data) {
+        void write (auto data, std::size_t size = 0) {
+
+            if (!size) size = get_size();
 
             if (device_local) {
 
@@ -40,13 +42,14 @@ namespace engine {
                 std::memcpy(mapped_memory, data, size);
                 device.get_handle().unmapMemory(staging_memory);
 
-                copy_buffer(staging_handle, handle);
+                copy_buffer(staging_handle, handle, size);
 
             } else std::memcpy(data_location, data, size);
 
         };
 
         constexpr const vk::Buffer& get_handle ( ) const { return handle; };
+        constexpr const std::size_t get_size ( ) const { return size; };
 
     };
 

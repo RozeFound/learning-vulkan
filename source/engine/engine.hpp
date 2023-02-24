@@ -38,7 +38,7 @@ namespace engine {
         vk::DescriptorPool descriptor_pool;
 
         void prepare ( );
-        void prepare_frame (uint32_t index);
+        void prepare_frame (uint32_t index, Scene& scene);
 
         void remake_swapchain ( );
 

@@ -85,7 +85,7 @@ namespace engine {
 
     }
 
-    void Buffer::copy_buffer (vk::Buffer& source, vk::Buffer& destination) {
+    void Buffer::copy_buffer (vk::Buffer& source, vk::Buffer& destination, std::size_t size) {
 
         auto indices = get_queue_family_indices(device.get_gpu(), device.get_surface());
         auto create_info = vk::CommandPoolCreateInfo {

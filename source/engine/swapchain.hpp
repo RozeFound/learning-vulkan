@@ -3,7 +3,6 @@
 #include <vector>
 
 #include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
 
 #define VULKAN_HPP_NO_CONSTRUCTORS
 #include <vulkan/vulkan.hpp>
@@ -12,12 +11,6 @@
 #include "memory.hpp"
 
 namespace engine {
-
-    struct UniformBufferObject {
-        glm::mat4x4 model;
-        glm::mat4x4 view;
-        glm::mat4x4 projection;
-    };
 
     class SwapChain {
 
@@ -29,6 +22,7 @@ namespace engine {
             vk::DescriptorSet descriptor_set;
 
             Buffer uniform_buffer;
+            Buffer storage_buffer;
 
             vk::Semaphore image_available;
             vk::Semaphore render_finished;

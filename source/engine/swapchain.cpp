@@ -4,6 +4,7 @@
 #include "utils.hpp"
 #include "swapchain.hpp"
 #include "logging.hpp"
+#include "shaders.hpp"
 
 namespace engine {
 
@@ -32,7 +33,7 @@ namespace engine {
         auto create_info = vk::SwapchainCreateInfoKHR {
             .flags = vk::SwapchainCreateFlagsKHR(),
             .surface = device.get_surface(), 
-            .minImageCount = capabilities.minImageCount,
+            .minImageCount = capabilities.minImageCount + 1,
             .imageFormat = format.format,
             .imageColorSpace = format.colorSpace,
             .imageExtent = get_extent(),
@@ -232,24 +233,37 @@ namespace engine {
 
         for (auto& frame : frames) {
 
-            frame.uniform_buffer = Buffer(device, sizeof(UniformBufferObject), vk::BufferUsageFlagBits::eUniformBuffer);  
+            auto write_info = std::array<vk::WriteDescriptorSet, 2>();
 
-            auto buffer_info = vk::DescriptorBufferInfo {
+            auto uniform_buffer_info = vk::DescriptorBufferInfo {
                 .buffer = frame.uniform_buffer.get_handle(),
-                .offset = 0,
-                .range = sizeof(UniformBufferObject)
+                .range = frame.uniform_buffer.get_size(),
             };
 
-            auto write_info = vk::WriteDescriptorSet {
+            write_info.at(0) = vk::WriteDescriptorSet {
                 .dstSet = frame.descriptor_set,
                 .dstBinding = 0,
                 .dstArrayElement = 0,
                 .descriptorCount = 1,
                 .descriptorType = vk::DescriptorType::eUniformBuffer,
-                .pBufferInfo = &buffer_info
+                .pBufferInfo = &uniform_buffer_info
             };
 
-            device.get_handle().updateDescriptorSets(1, &write_info, 0, nullptr);
+            auto storage_buffer_info = vk::DescriptorBufferInfo {
+                .buffer = frame.storage_buffer.get_handle(),
+                .range = frame.storage_buffer.get_size()
+            };
+
+            write_info.at(1) = vk::WriteDescriptorSet {
+                .dstSet = frame.descriptor_set,
+                .dstBinding = 1,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = vk::DescriptorType::eStorageBuffer,
+                .pBufferInfo = &storage_buffer_info
+            };
+
+            device.get_handle().updateDescriptorSets(to_u32(write_info.size()), write_info.data(), 0, nullptr);
 
         }
 

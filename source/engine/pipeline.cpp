@@ -3,7 +3,6 @@
 #include "pipeline.hpp"
 #include "shaders.hpp"
 #include "logging.hpp"
-#include "mesh.hpp"
 #include "utils.hpp"
 
 namespace engine {
@@ -115,17 +114,25 @@ namespace engine {
 
     void PipeLine::create_layout ( ) {
 
-        auto binding_info = vk::DescriptorSetLayoutBinding {
-            .binding = 0,
-            .descriptorType = vk::DescriptorType::eUniformBuffer,
-            .descriptorCount = 1,
-            .stageFlags = vk::ShaderStageFlagBits::eVertex,
+        auto bindings = std::array {
+            vk::DescriptorSetLayoutBinding {
+                .binding = 0,
+                .descriptorType = vk::DescriptorType::eUniformBuffer,
+                .descriptorCount = 1,
+                .stageFlags = vk::ShaderStageFlagBits::eVertex,
+            },
+            vk::DescriptorSetLayoutBinding {
+                .binding = 1,
+                .descriptorType = vk::DescriptorType::eStorageBuffer,
+                .descriptorCount = 1,
+                .stageFlags = vk::ShaderStageFlagBits::eVertex,
+            }
         };
 
         auto descriptor_set_info = vk::DescriptorSetLayoutCreateInfo {
             .flags = vk::DescriptorSetLayoutCreateFlags(),
-            .bindingCount = 1,
-            .pBindings = &binding_info
+            .bindingCount = to_u32(bindings.size()),
+            .pBindings = bindings.data()
         };
 
         try {
@@ -135,17 +142,10 @@ namespace engine {
             LOG_ERROR("Failed to create DescriptorSet Pipeline layout");
         }
 
-        auto pushconstant_info = vk::PushConstantRange {
-            .stageFlags = vk::ShaderStageFlagBits::eVertex,
-            .size = sizeof(glm::mat4x4)
-        };
-
         auto create_info = vk::PipelineLayoutCreateInfo {
             .flags = vk::PipelineLayoutCreateFlags(),
             .setLayoutCount = 1,
-            .pSetLayouts = &descriptor_set_layout,
-            .pushConstantRangeCount = 1,
-            .pPushConstantRanges = &pushconstant_info
+            .pSetLayouts = &descriptor_set_layout
         };
 
         try {

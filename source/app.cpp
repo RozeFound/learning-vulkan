@@ -47,7 +47,13 @@ GLFWwindow* App::create_window (std::size_t width, std::size_t height, std::stri
 
 void App::on_render ( ) {
 
-    ImGui::ShowDemoWindow();
+    ImGuiIO& io = ImGui::GetIO();
+
+    ImGui::Begin("Performance", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::Text("Frametime %.3f/ms", 1000.0f / io.Framerate);
+    ImGui::Text("Framerate %.1f/s", io.Framerate);
+    ImGui::End();
+    
 
 }
 

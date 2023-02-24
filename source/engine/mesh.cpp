@@ -1,5 +1,4 @@
 #include "mesh.hpp"
-#include <vulkan/vulkan_enums.hpp>
 #include "logging.hpp"
 #include "memory.hpp"
 

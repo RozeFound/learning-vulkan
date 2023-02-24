@@ -9,16 +9,16 @@ layout(binding = 0) uniform mvp {
 	mat4x4 projection;
 } ubo;
 
+layout(std140, binding = 1) readonly buffer storage {
+	mat4x4 model[];
+} data;
+
 layout(location = 0) in vec2 inPosition;
 layout(location = 1) in vec3 inColor;
-
-layout(push_constant) uniform constants {
-	mat4x4 model;
-} data;
 
 layout(location = 0) out vec3 fragColor;
 
 void main() {
-	gl_Position = ubo.projection * ubo.view * data.model * vec4(inPosition, 0.0, 1.0);
+	gl_Position = ubo.projection * ubo.view * data.model[gl_InstanceIndex] * vec4(inPosition, 0.0, 1.0);
 	fragColor = inColor;
 }
