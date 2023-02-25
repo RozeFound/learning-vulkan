@@ -19,7 +19,7 @@ namespace engine {
 
         auto create_info = vk::DebugUtilsMessengerCreateInfoEXT {
                 .flags = vk::DebugUtilsMessengerCreateFlagsEXT(),
-                .messageSeverity = eWarning | eError,
+                .messageSeverity = eVerbose | eInfo | eWarning | eError,
                 .messageType = eGeneral | eValidation | ePerformance,
                 .pfnUserCallback = debug_callback, .pUserData = nullptr
         };
@@ -37,6 +37,53 @@ namespace engine {
             case (log_level::info): std::cout << "Info: " << message << std::endl; break;
             case (log_level::warning): std::cout << "Warning: " << message << std::endl; break;
             case (log_level::error): std::cerr << "Error: " << message << std::endl; break;
+        }
+
+    }
+
+    void log_device_properties(vk::PhysicalDevice &physical_device) {
+
+        auto properties = physical_device.getProperties();
+
+        std::string device_type;
+
+        switch (properties.deviceType) {
+            case (vk::PhysicalDeviceType::eCpu): 
+                device_type = "CPU"; break;
+            case (vk::PhysicalDeviceType::eDiscreteGpu): 
+                device_type = "Discrete GPU"; break;
+            case (vk::PhysicalDeviceType::eIntegratedGpu): 
+                device_type = "Integrated GPU"; break;
+            case (vk::PhysicalDeviceType::eVirtualGpu): 
+                device_type = "Virtual GPU"; break;
+            default: device_type = "Other";
+        };
+
+        LOG_INFO("Device Name: {}", properties.deviceName);
+        LOG_INFO("Device Type: {}", device_type);
+
+        auto extensions = physical_device.enumerateDeviceExtensionProperties();
+
+        LOG_VERBOSE("Device can support extensions: ");
+        for (auto& extension : extensions)
+            LOG_VERBOSE("\t{}", extension.extensionName);
+
+    }
+
+    void log_instance_properties ( ) {
+
+        auto extensions = vk::enumerateInstanceExtensionProperties();
+
+        LOG_VERBOSE("Instance can support extensions:")
+        for (const auto& extension : extensions) {
+            LOG_VERBOSE("\t{}", extension.extensionName);
+        }
+
+        auto layers = vk::enumerateInstanceLayerProperties();
+
+        LOG_VERBOSE("Instance can support layers:")
+        for (const auto& layer : layers) {
+            LOG_VERBOSE("\t{}",layer.layerName);
         }
 
     }

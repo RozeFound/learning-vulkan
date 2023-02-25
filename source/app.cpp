@@ -11,7 +11,7 @@ App::App (std::size_t width, std::size_t height, std::string_view title) {
     this->title = title;
 
     window = create_window(width, height, title);
-    graphics_engine = std::make_unique<engine::Engine>(window);
+    graphics_engine = new engine::Engine(window);
     graphics_engine->on_render = on_render;
 
 }

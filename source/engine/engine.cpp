@@ -73,7 +73,7 @@ namespace engine {
 
         make_command_pool();
 
-        pipeline = PipeLine(device.get_handle(), SwapChain::query_format(device.get_gpu(), device.get_surface()));
+        pipeline = PipeLine(device.get_handle(), device.get_format());
 
         swapchain = SwapChain(device, pipeline.get_renderpass());
         max_frames_in_flight = swapchain.get_frames().size();
@@ -103,8 +103,8 @@ namespace engine {
             glfwWaitEvents();
         }
 
-        if (width == swapchain.get_extent().width 
-            && height == swapchain.get_extent().height)
+        if (width == device.get_extent().width 
+            && height == device.get_extent().height)
             return;
 
         device.get_handle().waitIdle();
@@ -190,7 +190,7 @@ namespace engine {
 
     void Engine::record_draw_commands (uint32_t index, Scene& scene) {
 
-        auto& frame = swapchain.get_frames().at(index);
+        auto& frame = swapchain.get_frames().at(frame_number);
         auto& command_buffer = frame.commands;
 
         auto begin_info = vk::CommandBufferBeginInfo();
@@ -204,7 +204,7 @@ namespace engine {
 
         auto renderpass_info = vk::RenderPassBeginInfo {
             .renderPass = pipeline.get_renderpass(),
-            .framebuffer = swapchain.get_frames().at(index).buffer,
+            .framebuffer = frame.buffer,
             .renderArea = {{0, 0}, swapchain.get_extent()},
             .clearValueCount = 1,
             .pClearValues = &clear_color
@@ -254,20 +254,15 @@ namespace engine {
         const auto& frame = swapchain.get_frames().at(frame_number);
 
         auto wait_result = device.get_handle().waitForFences(frame.in_flight, VK_TRUE, timeout);
-
-        auto image_result = device.get_handle().acquireNextImageKHR(swapchain.get_handle(), timeout, frame.image_available);
-    
-        if (image_result.result == vk::Result::eErrorOutOfDateKHR)
-            { remake_swapchain(); return; }
-
         device.get_handle().resetFences(frame.in_flight);
 
+        auto image_result = device.get_handle().acquireNextImageKHR(swapchain.get_handle(), timeout, frame.image_available);
+            
         frame.commands.reset();
 
-        record_draw_commands(image_result.value, scene);
+        record_draw_commands(frame_number, scene);
         
         vk::PipelineStageFlags wait_stages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
-
 
         auto submit_info = vk::SubmitInfo {
             .waitSemaphoreCount = 1,
@@ -296,8 +291,8 @@ namespace engine {
         auto present_result = present_queue.presentKHR(present_info);
 
         if (present_result == vk::Result::eErrorOutOfDateKHR 
-            || present_result == vk::Result::eSuboptimalKHR || is_framebuffer_resized)
-            { remake_swapchain(); return; };
+            || present_result == vk::Result::eSuboptimalKHR 
+            || is_framebuffer_resized) { remake_swapchain(); return; };
 
         frame_number = (frame_number + 1) % max_frames_in_flight;
     }

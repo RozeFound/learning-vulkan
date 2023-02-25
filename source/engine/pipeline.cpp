@@ -83,7 +83,7 @@ namespace engine {
 
         auto create_info = vk::GraphicsPipelineCreateInfo {
             .flags = vk::PipelineCreateFlags(),
-            .stageCount = static_cast<uint32_t>(stages.size()),
+            .stageCount = to_u32(stages.size()),
             .pStages = stages.data(),
             .pVertexInputState = &vertex_input_info,
             .pInputAssemblyState = &input_assembly_info,

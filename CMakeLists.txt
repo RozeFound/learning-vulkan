@@ -40,7 +40,7 @@ CPMAddPackage(
           "GLFW_BUILD_TESTS OFF"
           "GLFW_BUILD_EXAMPLES OFF"
           "GLFW_BULID_DOCS OFF"
-          "GLFW_USE_WAYLAND ON"
+          "GLFW_BUILD_WAYLAND ON"
 )
 CPMAddPackage("gh:g-truc/glm#0.9.9.8")
 
@@ -72,5 +72,5 @@ set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "Le
 include(cmake/shaders.cmake)
 
 # Link dependencies
-target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt-header-only)
+target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt)
 target_link_libraries(${PROJECT_NAME} PRIVATE vulkan glfw glm)

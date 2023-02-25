@@ -11,12 +11,8 @@ namespace engine {
 
         make_instance();
 
-        VkSurfaceKHR c_surface;
-
-        if (glfwCreateWindowSurface(instance, window, nullptr, &c_surface) != VK_SUCCESS)
+        if (glfwCreateWindowSurface(instance, window, nullptr, (VkSurfaceKHR*)&surface) != VK_SUCCESS)
             LOG_ERROR("Cannot abstract GLFW surface for Vulkan");
-
-        surface = c_surface;
 
         choose_physical_device();
         create_handle();
@@ -36,17 +32,12 @@ namespace engine {
 
     void Device::make_instance ( ) {
 
-        auto app_info = vk::ApplicationInfo {
-            .apiVersion = VK_VERSION_1_3
-        };
-
         uint32_t glfw_extension_count = 0;
         auto glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
         if (!glfw_extensions) LOG_WARNING("Failed to fetch required GLFW Extensions!");
 
-        auto extensions = std::vector<const char*>(glfw_extensions, glfw_extensions + glfw_extension_count);
+        auto extensions = std::vector(glfw_extensions, glfw_extensions + glfw_extension_count);
         auto layers = std::vector<const char*>();
-
 
         if constexpr (debug) {
 
@@ -59,14 +50,20 @@ namespace engine {
 
             layers.push_back("VK_LAYER_KHRONOS_validation");
 
+            log_instance_properties();
+
         }
+
+        auto app_info = vk::ApplicationInfo {
+            .apiVersion = VK_VERSION_1_3
+        };
 
         auto create_info = vk::InstanceCreateInfo {
             .flags = vk::InstanceCreateFlags(),
             .pApplicationInfo = &app_info,
-            .enabledLayerCount = static_cast<uint32_t>(layers.size()),
+            .enabledLayerCount = to_u32(layers.size()),
             .ppEnabledLayerNames = layers.data(),
-            .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+            .enabledExtensionCount = to_u32(extensions.size()),
             .ppEnabledExtensionNames = extensions.data()
         };
 
@@ -101,26 +98,7 @@ namespace engine {
         if (device != std::end(devices)) gpu = *device;
         else LOG_ERROR("Failed to get Physical Device");
 
-        auto properties = device->getProperties();
-
-        std::string device_type;
-
-        switch (properties.deviceType) {
-            case (vk::PhysicalDeviceType::eCpu): device_type = "CPU"; break;
-            case (vk::PhysicalDeviceType::eDiscreteGpu): device_type = "Discrete GPU"; break;
-            case (vk::PhysicalDeviceType::eIntegratedGpu): device_type = "Integrated GPU"; break;
-            case (vk::PhysicalDeviceType::eVirtualGpu): device_type = "Virtual GPU"; break;
-            default: device_type = "Other";
-        };
-
-        LOG_INFO("Device Name: {}", properties.deviceName);
-        LOG_INFO("Device Type: {}", device_type);
-
-        auto extensions = gpu.enumerateDeviceExtensionProperties();
-
-        LOG_VERBOSE("Device can support extensions: ");
-        for (auto& extension : extensions)
-            LOG_VERBOSE("\t{}", extension.extensionName);
+        log_device_properties(gpu);
 
     }
 
@@ -132,7 +110,7 @@ namespace engine {
         auto queue_info = std::vector<vk::DeviceQueueCreateInfo>();
         auto queue_piority = 1.f;
 
-        auto unique_indices = std::set<uint32_t> {
+        auto unique_indices = std::set {
             indices.transfer_family.value(),
             indices.graphics_family.value(), 
             indices.present_family.value()
@@ -152,29 +130,28 @@ namespace engine {
         auto device_features = vk::PhysicalDeviceFeatures();
 
         auto extensions = std::vector {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-
         auto layers = std::vector<const char*>();
 
         if constexpr (debug) layers.push_back("VK_LAYER_KHRONOS_validation");
 
         auto device_info = vk::DeviceCreateInfo {
             .flags = vk::DeviceCreateFlags(),
-            .queueCreateInfoCount = static_cast<uint32_t>(queue_info.size()),
+            .queueCreateInfoCount = to_u32(queue_info.size()),
             .pQueueCreateInfos = queue_info.data(),
-            .enabledLayerCount = static_cast<uint32_t>(layers.size()),
+            .enabledLayerCount = to_u32(layers.size()),
             .ppEnabledLayerNames = layers.data(),
-            .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+            .enabledExtensionCount = to_u32(extensions.size()),
             .ppEnabledExtensionNames = extensions.data(),
             .pEnabledFeatures = &device_features
         };
 
         try {
             handle = gpu.createDevice(device_info);
-            LOG_INFO("Device was successfully abstracted.");
+            LOG_INFO("Device was successfully abstracted");
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to abstract Physical Device");
         }
 
     }
-
+    
 }

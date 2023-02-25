@@ -8,20 +8,11 @@
 
 namespace engine {
 
-    SwapChain::SwapChain (Device& device, const vk::RenderPass& renderpass) : device(device), renderpass(renderpass) {
-
-        capabilities = device.get_gpu().getSurfaceCapabilitiesKHR(device.get_surface());
-        format = query_format(device.get_gpu(), device.get_surface());
-
-        create_handle();
-
-    }
-
     void SwapChain::create_handle ( ) {
 
+        auto capabilities = device.get_gpu().getSurfaceCapabilitiesKHR(device.get_surface());
         auto modes = device.get_gpu().getSurfacePresentModesKHR(device.get_surface());
-        auto format = get_format();
-        extent = query_extent(capabilities, device.get_window());
+        extent = device.get_extent();
 
         auto present_mode = vk::PresentModeKHR::eFifo;
 
@@ -33,10 +24,10 @@ namespace engine {
         auto create_info = vk::SwapchainCreateInfoKHR {
             .flags = vk::SwapchainCreateFlagsKHR(),
             .surface = device.get_surface(), 
-            .minImageCount = capabilities.minImageCount + 1,
-            .imageFormat = format.format,
-            .imageColorSpace = format.colorSpace,
-            .imageExtent = get_extent(),
+            .minImageCount = capabilities.minImageCount,
+            .imageFormat = device.get_format().format,
+            .imageColorSpace = device.get_format().colorSpace,
+            .imageExtent = extent,
             .imageArrayLayers = 1,
             .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
             // We'll set sharing mode and queue indices below //
@@ -86,44 +77,6 @@ namespace engine {
 
     }
 
-    vk::SurfaceFormatKHR SwapChain::query_format (const vk::PhysicalDevice& physical_device, const vk::SurfaceKHR& surface) {
-
-        auto formats =  physical_device.getSurfaceFormatsKHR(surface);
-
-        for (const auto& format : formats)
-            if (format.format == vk::Format::eB8G8R8A8Unorm 
-                && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
-                return format;
-
-        return formats.at(0);
-
-    }
-
-    vk::Extent2D SwapChain::query_extent (vk::SurfaceCapabilitiesKHR& capabilities, const GLFWwindow* window) {
-
-        if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) 
-            return capabilities.currentExtent;
-
-        int width, height;
-        glfwGetFramebufferSize(const_cast<GLFWwindow*>(window), &width, &height);
-
-        auto min_width = std::max(capabilities.minImageExtent.width, static_cast<uint32_t>(width));
-        auto min_height = std::max(capabilities.minImageExtent.height, static_cast<uint32_t>(height));
-
-        return vk::Extent2D { 
-            .width = std::min(min_width, capabilities.maxImageExtent.width),
-            .height = std::min(min_height, capabilities.maxImageExtent.height)
-        };
-
-    }
-
-    vk::Extent2D SwapChain::query_extent (const vk::PhysicalDevice& physical_device, const vk::SurfaceKHR& surface, const GLFWwindow* window) {
-
-            auto capabilities = physical_device.getSurfaceCapabilitiesKHR(surface);
-            return query_extent(capabilities, window);
-
-        }
-
     void SwapChain::make_frames ( ) {
 
         auto images = device.get_handle().getSwapchainImagesKHR(handle);
@@ -143,7 +96,7 @@ namespace engine {
                 .flags = vk::ImageViewCreateFlags(),
                 .image = images.at(i),
                 .viewType = vk::ImageViewType::e2D,
-                .format = format.format,
+                .format = device.get_format().format,
                 .components = vk::ComponentMapping(),
                 .subresourceRange = subres_range
             };
@@ -174,7 +127,7 @@ namespace engine {
             auto create_info = vk::FramebufferCreateInfo {
                 .flags = vk::FramebufferCreateFlags(),
                 .renderPass = renderpass,
-                .attachmentCount = static_cast<uint32_t>(attachments.size()),
+                .attachmentCount = to_u32(attachments.size()),
                 .pAttachments = attachments.data(),
                 .width = extent.width,
                 .height = extent.height,
@@ -198,7 +151,7 @@ namespace engine {
         auto allocate_info = vk::CommandBufferAllocateInfo {
             .commandPool = command_pool,
             .level = vk::CommandBufferLevel::ePrimary,
-            .commandBufferCount = static_cast<uint32_t>(frames.size())
+            .commandBufferCount = to_u32(frames.size())
         };
 
         try {

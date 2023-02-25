@@ -32,9 +32,6 @@ namespace engine {
         vk::SwapchainKHR handle;
         std::vector<Frame> frames;
         vk::RenderPass renderpass;
-
-        vk::SurfaceCapabilitiesKHR capabilities;
-        vk::SurfaceFormatKHR format;
         vk::Extent2D extent;
 
         Device device;
@@ -45,23 +42,17 @@ namespace engine {
         public:
 
         SwapChain ( ) = default;
-        SwapChain (Device& device, const vk::RenderPass&);
+        SwapChain (Device& device, const vk::RenderPass& renderpass)
+            : device(device), renderpass(renderpass) { create_handle(); };
 
         void create_handle ( );
 
         void make_commandbuffers (vk::CommandPool&);
         void make_descriptor_sets (vk::DescriptorPool&, const vk::DescriptorSetLayout&);
-
-        static vk::Extent2D query_extent (const vk::PhysicalDevice&, const vk::SurfaceKHR&, const GLFWwindow*);
-        static vk::Extent2D query_extent (vk::SurfaceCapabilitiesKHR&, const GLFWwindow*);
-        
-        static vk::SurfaceFormatKHR query_format (const vk::PhysicalDevice&, const vk::SurfaceKHR&);
         
         constexpr const vk::SwapchainKHR& get_handle ( ) const { return handle; };
         constexpr std::vector<Frame>& get_frames ( ) { return frames; };
-
-        constexpr const vk::SurfaceFormatKHR& get_format ( ) const { return format; };
-        constexpr const vk::Extent2D& get_extent ( ) const { return extent; };
+        constexpr const vk::Extent2D& get_extent( ) const { return extent; };
 
         void destroy ( );
 

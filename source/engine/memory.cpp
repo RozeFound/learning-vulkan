@@ -12,8 +12,8 @@ namespace engine {
 
         for (uint32_t i = 0; i < properties.memoryTypeCount; i++) {
 
-            bool supported = requirements.memoryTypeBits & (1 << i) ? true : false;
-            bool sufficient = (properties.memoryTypes.at(i).propertyFlags & flags) == flags ? true : false;
+            bool supported = requirements.memoryTypeBits & (1 << i);
+            bool sufficient = (properties.memoryTypes.at(i).propertyFlags & flags) == flags;
 
             if (supported && sufficient) return i;
 
