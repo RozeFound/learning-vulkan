@@ -4,10 +4,7 @@
 #include <vector>
 #include <filesystem>
 
-#include <glm/glm.hpp>
-
-#define VULKAN_HPP_NO_CONSTRUCTORS
-#include <vulkan/vulkan.hpp>
+#include "essentials.hpp"
 
 namespace engine {
 
@@ -73,10 +70,9 @@ namespace engine {
         public:
 
         Shader (const vk::Device& device, std::filesystem::path path); 
+        ~Shader ( );
 
         std::vector<vk::PipelineShaderStageCreateInfo> get_stage_info ( );
-
-        void destroy ( );
 
     };
 

@@ -32,7 +32,7 @@ namespace engine {
         };
     }
 
-    void Shader::destroy ( ) {
+    Shader::~Shader ( ) {
 
         device.destroyShaderModule(vertex_module);
         device.destroyShaderModule(fragment_module);

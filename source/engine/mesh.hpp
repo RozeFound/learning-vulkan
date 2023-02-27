@@ -2,9 +2,7 @@
 
 #include <vector>
 
-#define VULKAN_HPP_NO_CONSTRUCTORS
-#include <vulkan/vulkan.hpp>
-
+#include "essentials.hpp"
 #include "memory.hpp"
 #include "device.hpp"
 #include "shaders.hpp"
@@ -15,12 +13,9 @@ namespace engine {
     struct Mesh {
 
         std::vector<Vertex> vertices;
-        Buffer vertex_buffer;
+        std::unique_ptr<Buffer> vertex_buffer;
 
-        Device device;
-
-        Mesh (Device& device);
-        ~Mesh( );
+        Mesh (std::shared_ptr<Device> device);
 
     };
 

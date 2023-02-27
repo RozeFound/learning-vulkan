@@ -1,50 +1,56 @@
 #pragma once
 
-#define VULKAN_HPP_NO_CONSTRUCTORS
-#include <vulkan/vulkan.hpp>
-
+#include "essentials.hpp"
 #include "device.hpp"
+#include <memory>
 
 namespace engine {
+
+    void copy_buffer (std::shared_ptr<Device> device, const vk::Buffer& source, vk::Buffer& destination, std::size_t size);
+    uint32_t get_memory_index (vk::PhysicalDevice&, vk::MemoryRequirements, vk::MemoryPropertyFlags);
 
     class Buffer {
 
         vk::Buffer handle;
         vk::DeviceMemory memory;
-        void* data_location;
+        void* data_location = nullptr;
 
-        vk::Buffer staging_handle;
-        vk::DeviceMemory staging_memory;
-
-        Device device;
+        std::shared_ptr<Device> device;
 
         std::size_t size;
 
-        bool device_local;
-
-        void create_buffer (vk::BufferUsageFlags, vk::MemoryPropertyFlags);
-        void copy_buffer (vk::Buffer& src, vk::Buffer& dst, std::size_t size);
+        bool device_local = false;
+        bool persistent_memory = false;
 
         public:
 
         Buffer ( ) = default;
-        Buffer (Device& device, std::size_t size, vk::BufferUsageFlags usage, bool device_local = false);
+        Buffer (std::shared_ptr<Device> device, std::size_t size, vk::BufferUsageFlags usage, bool device_local = false);
+        ~Buffer ( );
 
-        void destroy ( ); 
-
-        void write (auto data, std::size_t size = 0) {
+        void write (auto data, std::size_t size = 0, bool persistent = false) {
 
             if (!size) size = get_size();
 
             if (device_local) {
 
-                void* mapped_memory = device.get_handle().mapMemory(staging_memory, 0, size);
-                std::memcpy(mapped_memory, data, size);
-                device.get_handle().unmapMemory(staging_memory);
+                auto staging = Buffer(device, size, vk::BufferUsageFlagBits::eTransferSrc);
 
-                copy_buffer(staging_handle, handle, size);
+                staging.write(data, size);
 
-            } else std::memcpy(data_location, data, size);
+                copy_buffer(device, staging.get_handle(), handle, size);
+
+            } else {
+
+                if (!data_location) data_location = device->get_handle().mapMemory(memory, 0, size);
+                std::memcpy(data_location, data, size);
+
+                if (!persistent) {
+                    device->get_handle().unmapMemory(memory);
+                    data_location = nullptr;
+                } else persistent_memory = true;
+
+            }
 
         };
 
@@ -52,7 +58,5 @@ namespace engine {
         constexpr const std::size_t get_size ( ) const { return size; };
 
     };
-
-    uint32_t get_memory_index (vk::PhysicalDevice&, vk::MemoryRequirements, vk::MemoryPropertyFlags);
 
 }

@@ -6,6 +6,7 @@
 #include "device.hpp"
 #include "engine.hpp"
 #include "logging.hpp"
+#include "pipeline.hpp"
 #include "utils.hpp"
 #include "shaders.hpp"
 
@@ -27,16 +28,16 @@ namespace engine {
 
         }
 
-        device = Device(window);
+        device = std::make_shared<Device>(window);
 
         if constexpr (debug) {
-            dldi = vk::DispatchLoaderDynamic(device.get_instance(), vkGetInstanceProcAddr);
-            debug_messenger = make_debug_messenger(device.get_instance(), dldi);
+            dldi = vk::DispatchLoaderDynamic(device->get_instance(), vkGetInstanceProcAddr);
+            debug_messenger = make_debug_messenger(device->get_instance(), dldi);
         }
 
-        auto indices = get_queue_family_indices(device.get_gpu(), device.get_surface());
-        graphics_queue = device.get_handle().getQueue(indices.graphics_family.value(), 0);
-        present_queue = device.get_handle().getQueue(indices.present_family.value(), 0);
+        auto indices = get_queue_family_indices(device->get_gpu(), device->get_surface());
+        graphics_queue = device->get_handle().getQueue(indices.graphics_family.value(), 0);
+        present_queue = device->get_handle().getQueue(indices.present_family.value(), 0);
 
         prepare();
 
@@ -44,28 +45,22 @@ namespace engine {
 
     Engine::~Engine ( ) {
 
-        device.get_handle().waitIdle();
-
-        if (is_imgui_enabled) imgui.destroy();
+        device->get_handle().waitIdle();
 
         LOG_INFO("Destroying Engine...");
 
-        if (debug) device.get_instance().destroyDebugUtilsMessengerEXT(debug_messenger, nullptr, dldi);
+        if (debug) device->get_instance().destroyDebugUtilsMessengerEXT(debug_messenger, nullptr, dldi);
 
         LOG_INFO("Destroying Command Pool");
-        device.get_handle().destroyCommandPool(command_pool);
+        device->get_handle().destroyCommandPool(command_pool);
         LOG_INFO("Destroying Descriptor Pool");
-        device.get_handle().destroyDescriptorPool(descriptor_pool);
+        device->get_handle().destroyDescriptorPool(descriptor_pool);
 
-        for (auto& frame : swapchain.get_frames()) {
-            frame.uniform_buffer.destroy();
-            frame.storage_buffer.destroy();
-        }
-
-        pipeline.destroy();
-        swapchain.destroy();
-
-        delete asset;
+        LOG_INFO("Destroying Pipeline");
+        device->get_handle().destroyRenderPass(renderpass);
+        device->get_handle().destroyPipelineLayout(pipeline_layout);
+        device->get_handle().destroyDescriptorSetLayout(descriptor_set_layout);
+        device->get_handle().destroyPipeline(pipeline);
 
     }
 
@@ -73,25 +68,25 @@ namespace engine {
 
         make_command_pool();
 
-        pipeline = PipeLine(device.get_handle(), device.get_format());
+        renderpass = create_renderpass(device);
 
-        swapchain = SwapChain(device, pipeline.get_renderpass());
-        max_frames_in_flight = swapchain.get_frames().size();
+        swapchain = std::make_unique<SwapChain>(device, renderpass);
+        max_frames_in_flight = swapchain->get_frames().size();
+
         make_descriptor_pool();
+        descriptor_set_layout = create_descriptor_set_layout(device);
 
-        for (auto& frame : swapchain.get_frames()) {
-            frame.uniform_buffer = Buffer(device, sizeof(UniformBufferObject), vk::BufferUsageFlagBits::eUniformBuffer);  
-            frame.storage_buffer = Buffer(device, 1024 * sizeof(glm::mat4x4), vk::BufferUsageFlagBits::eStorageBuffer);
-        }
+        swapchain->make_commandbuffers(command_pool);
+        swapchain->make_descriptor_sets(descriptor_pool, descriptor_set_layout);
 
-        swapchain.make_commandbuffers(command_pool);
-        swapchain.make_descriptor_sets(descriptor_pool, pipeline.get_descriptor_set_layout());
+        pipeline_layout = create_pipeline_layout(device, descriptor_set_layout);
+        pipeline = create_pipeline(device, pipeline_layout, renderpass);
 
-        if (is_imgui_enabled) imgui = ImGUI(device, swapchain, pipeline);
+        if (is_imgui_enabled) imgui = std::make_unique<ImGUI>(device, max_frames_in_flight, renderpass);
 
         frame_number = 0;
 
-        asset = new Mesh(device);
+        asset = std::make_unique<Mesh>(device);
 
     }
 
@@ -99,17 +94,17 @@ namespace engine {
 
         int width = 0, height = 0;
         while (width == 0 || height == 0) {
-            glfwGetFramebufferSize(const_cast<GLFWwindow*>(device.get_window()), &width, &height);
+            glfwGetFramebufferSize(const_cast<GLFWwindow*>(device->get_window()), &width, &height);
             glfwWaitEvents();
         }
 
-        if (width == device.get_extent().width 
-            && height == device.get_extent().height)
+        if (width == device->get_extent().width 
+            && height == device->get_extent().height)
             return;
 
-        device.get_handle().waitIdle();
+        device->get_handle().waitIdle();
 
-        swapchain.create_handle();
+        swapchain->create_handle();
 
         frame_number = 0;
         is_framebuffer_resized = false;
@@ -118,7 +113,7 @@ namespace engine {
 
     void Engine::make_command_pool ( ) {
 
-        auto indices = get_queue_family_indices(device.get_gpu(), device.get_surface());
+        auto indices = get_queue_family_indices(device->get_gpu(), device->get_surface());
 
         auto create_info = vk::CommandPoolCreateInfo {
             .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
@@ -126,7 +121,7 @@ namespace engine {
         };
 
         try {
-            command_pool = device.get_handle().createCommandPool(create_info);
+            command_pool = device->get_handle().createCommandPool(create_info);
             LOG_INFO("Successfully created Command Pool");
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to create Command Pool");
@@ -155,7 +150,7 @@ namespace engine {
         };
 
         try {
-            descriptor_pool = device.get_handle().createDescriptorPool(create_info);
+            descriptor_pool = device->get_handle().createDescriptorPool(create_info);
             LOG_INFO("Successfully created Descriptor Pool");
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to create Descriptor Pool");
@@ -165,18 +160,18 @@ namespace engine {
 
     void Engine::prepare_frame (uint32_t index, Scene& scene) {
 
-        auto& frame = swapchain.get_frames().at(index);
+        auto& frame = swapchain->get_frames().at(index);
 
         glm::vec3 eye = { 2.0f, 2.0f, -1.0f };
         glm::vec3 center = { 0.0f, 0.0f, 0.0f };
         glm::vec3 up = { 0.0f, 0.0f, -1.0f };
 
-        auto aspect = static_cast<float>(swapchain.get_extent().width) / static_cast<float>(swapchain.get_extent().height);
+        auto aspect = static_cast<float>(swapchain->get_extent().width) / static_cast<float>(swapchain->get_extent().height);
 
         auto ubo = UniformBufferObject {
             .view = glm::lookAt(eye, center, up),
             .projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 10.0f)
-        }; ubo.projection[1][1] *= -1; frame.uniform_buffer.write(&ubo);
+        }; ubo.projection[1][1] *= -1; frame.uniform->write(&ubo, sizeof(ubo), true);
 
         auto positions = std::vector<glm::mat4x4>();
         positions.reserve(scene.triangle_positions.size());
@@ -184,13 +179,13 @@ namespace engine {
         for (const auto& position : scene.triangle_positions)
             positions.push_back(glm::translate(glm::mat4x4(1.f), position));
 
-        frame.storage_buffer.write(positions.data(), positions.size() * sizeof(glm::mat4x4));
+        frame.storage->write(positions.data(), positions.size() * sizeof(glm::mat4x4), true);
 
     }
 
     void Engine::record_draw_commands (uint32_t index, Scene& scene) {
 
-        auto& frame = swapchain.get_frames().at(frame_number);
+        auto& frame = swapchain->get_frames().at(index);
         auto& command_buffer = frame.commands;
 
         auto begin_info = vk::CommandBufferBeginInfo();
@@ -203,23 +198,23 @@ namespace engine {
         auto clear_color = vk::ClearValue { std::array {1.f, 1.f, 1.f, 1.f} };
 
         auto renderpass_info = vk::RenderPassBeginInfo {
-            .renderPass = pipeline.get_renderpass(),
+            .renderPass = renderpass,
             .framebuffer = frame.buffer,
-            .renderArea = {{0, 0}, swapchain.get_extent()},
+            .renderArea = {{0, 0}, swapchain->get_extent()},
             .clearValueCount = 1,
             .pClearValues = &clear_color
         };
 
         command_buffer.beginRenderPass(renderpass_info, vk::SubpassContents::eInline);
-        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get_handle());
-        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_pipeline_layout(), 0, 1, &frame.descriptor_set, 0, nullptr);
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, 1, &frame.descriptor_set, 0, nullptr);
 
         auto offsets = std::array<vk::DeviceSize, 1> {}; 
-        command_buffer.bindVertexBuffers(0, 1, &asset->vertex_buffer.get_handle(), offsets.data());
+        command_buffer.bindVertexBuffers(0, 1, &asset->vertex_buffer->get_handle(), offsets.data());
 
         auto viewport = vk::Viewport {
-            .width = static_cast<float>(swapchain.get_extent().width),
-            .height = static_cast<float>(swapchain.get_extent().height),       
+            .width = static_cast<float>(swapchain->get_extent().width),
+            .height = static_cast<float>(swapchain->get_extent().height),       
             .minDepth = 0.f,
             .maxDepth = 1.f
         };
@@ -227,7 +222,7 @@ namespace engine {
         command_buffer.setViewport(0, 1, &viewport);
 
         auto scissor = vk::Rect2D {
-            .extent = swapchain.get_extent()
+            .extent = swapchain->get_extent()
         };
 
         command_buffer.setScissor(0, 1, &scissor);
@@ -237,7 +232,7 @@ namespace engine {
         auto instance_count = to_u32(scene.triangle_positions.size());
         command_buffer.draw(vertex_count,instance_count, 0, 0);
 
-        if (is_imgui_enabled) imgui.draw(command_buffer, on_render);
+        if (is_imgui_enabled) imgui->draw(command_buffer, on_render);
         command_buffer.endRenderPass();
 
         try {
@@ -251,12 +246,12 @@ namespace engine {
     void Engine::draw (Scene& scene) {
 
         constexpr auto timeout = std::numeric_limits<uint64_t>::max();
-        const auto& frame = swapchain.get_frames().at(frame_number);
+        const auto& frame = swapchain->get_frames().at(frame_number);
 
-        auto wait_result = device.get_handle().waitForFences(frame.in_flight, VK_TRUE, timeout);
-        device.get_handle().resetFences(frame.in_flight);
+        auto wait_result = device->get_handle().waitForFences(frame.in_flight, VK_TRUE, timeout);
+        device->get_handle().resetFences(frame.in_flight);
 
-        auto image_result = device.get_handle().acquireNextImageKHR(swapchain.get_handle(), timeout, frame.image_available);
+        auto image_result = device->get_handle().acquireNextImageKHR(swapchain->get_handle(), timeout, frame.image_available);
             
         frame.commands.reset();
 
@@ -284,7 +279,7 @@ namespace engine {
             .waitSemaphoreCount = 1,
             .pWaitSemaphores = &frame.render_finished,
             .swapchainCount = 1,
-            .pSwapchains = &swapchain.get_handle(),
+            .pSwapchains = &swapchain->get_handle(),
             .pImageIndices = &image_result.value
         };
 

@@ -3,14 +3,10 @@
 #include <functional>
 #include <vector>
 
-#include <GLFW/glfw3.h>
-
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_vulkan.h>
 
-#define VULKAN_HPP_NO_CONSTRUCTORS
-#include <vulkan/vulkan.hpp>
-
+#include "essentials.hpp"
 #include "device.hpp"
 #include "pipeline.hpp"
 #include "swapchain.hpp"
@@ -21,9 +17,8 @@ namespace engine {
 
         vk::DescriptorPool descriptor_pool;
 
-        Device device;
-        SwapChain swapchain;
-        PipeLine pipeline;
+        std::shared_ptr<Device> device;
+        vk::RenderPass renderpass;
 
         uint32_t image_count;
 
@@ -35,11 +30,10 @@ namespace engine {
         public:
 
         ImGUI ( ) = default;
-        ImGUI (Device&, SwapChain&, PipeLine&);
+        ImGUI (std::shared_ptr<Device>, std::size_t image_count, vk::RenderPass& renderpass);
+        ~ImGUI ( );
 
         void draw (vk::CommandBuffer&, std::function<void()>);
-
-        void destroy ( );
 
     };
 

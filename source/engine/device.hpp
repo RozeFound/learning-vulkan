@@ -2,10 +2,7 @@
 
 #include <limits>
 
-#define VULKAN_HPP_NO_CONSTRUCTORS
-#include <vulkan/vulkan.hpp>
-#include <GLFW/glfw3.h>
-
+#include "essentials.hpp"
 #include "utils.hpp"
 
 namespace engine {
@@ -28,7 +25,7 @@ namespace engine {
 
         Device ( ) = default;
         Device (GLFWwindow*);
-        void destroy ( );
+        ~Device ( );
 
         constexpr const vk::Device& get_handle ( ) const { return handle; };
         constexpr const vk::PhysicalDevice& get_gpu ( ) const { return gpu; };

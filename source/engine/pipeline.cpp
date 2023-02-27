@@ -1,5 +1,6 @@
 #include <glm/glm.hpp>
 
+#include "device.hpp"
 #include "pipeline.hpp"
 #include "shaders.hpp"
 #include "logging.hpp"
@@ -7,8 +8,7 @@
 
 namespace engine {
 
-    PipeLine::PipeLine (const vk::Device& device, const vk::SurfaceFormatKHR& format)
-        : device(device), format(format) {
+    vk::Pipeline create_pipeline (std::shared_ptr<Device> device, vk::PipelineLayout& layout, vk::RenderPass& renderpass) {
 
         auto binding_description = Vertex::get_binding_description();
         auto attribute_descriptions = Vertex::get_attribute_descriptions(); 
@@ -75,11 +75,8 @@ namespace engine {
             .pAttachments = &color_blend_attachment
         };
 
-        auto shader = Shader(device, "shaders/basic");
+        auto shader = Shader(device->get_handle(), "shaders/basic");
         auto stages = shader.get_stage_info(); 
-
-        create_layout();
-        create_renderpass();
 
         auto create_info = vk::GraphicsPipelineCreateInfo {
             .flags = vk::PipelineCreateFlags(),
@@ -94,7 +91,7 @@ namespace engine {
             .pDepthStencilState = nullptr,
             .pColorBlendState = &color_blend_info,
             .pDynamicState = &dynamic_state_info,
-            .layout = pipeline_layout,
+            .layout = layout,
             .renderPass = renderpass,
             .subpass = 0,
             .basePipelineHandle = nullptr,
@@ -102,17 +99,38 @@ namespace engine {
         };
 
         try {
-            handle = device.createGraphicsPipeline(nullptr, create_info).value;
+            auto result = device->get_handle().createGraphicsPipeline(nullptr, create_info);
             LOG_INFO("Successfully created Graphics PipeLine");
+            return result.value;
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to create Graphics Pipeline");
+            return nullptr;
         }
 
-        shader.destroy();
+        
     
     }
 
-    void PipeLine::create_layout ( ) {
+    vk::PipelineLayout create_pipeline_layout (std::shared_ptr<Device> device, const vk::DescriptorSetLayout& layout) {
+
+        auto create_info = vk::PipelineLayoutCreateInfo {
+            .flags = vk::PipelineLayoutCreateFlags(),
+            .setLayoutCount = 1,
+            .pSetLayouts = &layout
+        };
+
+        try {
+            auto result = device->get_handle().createPipelineLayout(create_info);
+            LOG_INFO("Created PipeLine Layout");
+            return result;
+        } catch (vk::SystemError) {
+            LOG_ERROR("Failed to create PipeLine Layout");
+            return nullptr;
+        }
+
+    }
+
+    vk::DescriptorSetLayout create_descriptor_set_layout (std::shared_ptr<Device> device) {
 
         auto bindings = std::array {
             vk::DescriptorSetLayoutBinding {
@@ -136,32 +154,22 @@ namespace engine {
         };
 
         try {
-            descriptor_set_layout = device.createDescriptorSetLayout(descriptor_set_info);
+            auto result = device->get_handle().createDescriptorSetLayout(descriptor_set_info);
             LOG_INFO("Created DescriptorSet Pipeline layout");
+            return result;
         } catch (vk::SystemError error) {
             LOG_ERROR("Failed to create DescriptorSet Pipeline layout");
-        }
-
-        auto create_info = vk::PipelineLayoutCreateInfo {
-            .flags = vk::PipelineLayoutCreateFlags(),
-            .setLayoutCount = 1,
-            .pSetLayouts = &descriptor_set_layout
-        };
-
-        try {
-            pipeline_layout = device.createPipelineLayout(create_info);
-            LOG_INFO("Created PipeLine Layout");
-        } catch (vk::SystemError) {
-            LOG_ERROR("Failed to create PipeLine Layout");
+            return nullptr;
         }
 
     }
 
-    void PipeLine::create_renderpass ( ) {
+
+    vk::RenderPass create_renderpass (std::shared_ptr<Device> device) {
 
         auto attachment = vk::AttachmentDescription {
             .flags = vk::AttachmentDescriptionFlags(),
-            .format = format.format,
+            .format = device->get_format().format,
             .samples = vk::SampleCountFlagBits::e1,
             .loadOp = vk::AttachmentLoadOp::eClear,
             .storeOp = vk::AttachmentStoreOp::eStore,
@@ -201,21 +209,13 @@ namespace engine {
         };
 
         try {
-            renderpass = device.createRenderPass(create_info);
+            auto result = device->get_handle().createRenderPass(create_info);
             LOG_INFO("Created PipeLine renderpass");
+            return result;
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to create PipeLine renderpass");
+            return nullptr;
         }
-
-    }
-
-    void PipeLine::destroy ( ) {
-
-        LOG_INFO("Destroying Pipeline");
-        device.destroyRenderPass(renderpass);
-        device.destroyDescriptorSetLayout(descriptor_set_layout);
-        device.destroyPipelineLayout(pipeline_layout);
-        device.destroyPipeline(handle);
 
     }
 

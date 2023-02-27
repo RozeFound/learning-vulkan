@@ -1,15 +1,12 @@
 #pragma once
 
-#include <GLFW/glfw3.h>
 #include <functional>
-#include "device.hpp"
+
+#include "essentials.hpp"
+
 #include "mesh.hpp"
-
-#define VULKAN_HPP_NO_CONSTRUCTORS
-#include <vulkan/vulkan.hpp>
-
+#include "device.hpp"
 #include "swapchain.hpp"
-#include "pipeline.hpp"
 #include "../scene.hpp"
 #include "imgui.hpp"
 
@@ -23,19 +20,23 @@ namespace engine {
         vk::DebugUtilsMessengerEXT debug_messenger;
         vk::DispatchLoaderDynamic dldi;
 
-        Device device;
+        std::shared_ptr<Device> device;
 
-        ImGUI imgui;
-        Mesh* asset;
+        std::unique_ptr<ImGUI> imgui;
+        std::unique_ptr<Mesh> asset;
 
-        SwapChain swapchain;
-        PipeLine pipeline;
+        std::unique_ptr<SwapChain> swapchain;
+
+        vk::Pipeline pipeline;
+        vk::PipelineLayout pipeline_layout;
+        vk::RenderPass renderpass;
 
         vk::Queue graphics_queue;
         vk::Queue present_queue;
 
         vk::CommandPool command_pool;
         vk::DescriptorPool descriptor_pool;
+        vk::DescriptorSetLayout descriptor_set_layout;
 
         void prepare ( );
         void prepare_frame (uint32_t index, Scene& scene);

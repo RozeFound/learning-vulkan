@@ -2,10 +2,7 @@
 
 #include <vector>
 
-#include <GLFW/glfw3.h>
-
-#define VULKAN_HPP_NO_CONSTRUCTORS
-#include <vulkan/vulkan.hpp>
+#include "essentials.hpp"
 
 #include "device.hpp"
 #include "memory.hpp"
@@ -21,8 +18,8 @@ namespace engine {
             vk::CommandBuffer commands;
             vk::DescriptorSet descriptor_set;
 
-            Buffer uniform_buffer;
-            Buffer storage_buffer;
+            std::unique_ptr<Buffer> uniform;
+            std::unique_ptr<Buffer> storage;
 
             vk::Semaphore image_available;
             vk::Semaphore render_finished;
@@ -34,7 +31,7 @@ namespace engine {
         vk::RenderPass renderpass;
         vk::Extent2D extent;
 
-        Device device;
+        std::shared_ptr<Device> device;
 
         void make_frames ( );
         void make_framebuffers ( );
@@ -42,19 +39,18 @@ namespace engine {
         public:
 
         SwapChain ( ) = default;
-        SwapChain (Device& device, const vk::RenderPass& renderpass)
+        SwapChain (std::shared_ptr<Device> device, const vk::RenderPass& renderpass)
             : device(device), renderpass(renderpass) { create_handle(); };
+        ~SwapChain ( );
 
         void create_handle ( );
 
         void make_commandbuffers (vk::CommandPool&);
         void make_descriptor_sets (vk::DescriptorPool&, const vk::DescriptorSetLayout&);
-        
+
         constexpr const vk::SwapchainKHR& get_handle ( ) const { return handle; };
         constexpr std::vector<Frame>& get_frames ( ) { return frames; };
         constexpr const vk::Extent2D& get_extent( ) const { return extent; };
-
-        void destroy ( );
 
     };
 

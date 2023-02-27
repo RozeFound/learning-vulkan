@@ -19,7 +19,7 @@ namespace engine {
 
     }
 
-    void Device::destroy ( ) {
+    Device::~Device ( ) {
 
         LOG_INFO("Destroying Device");
         handle.destroy();

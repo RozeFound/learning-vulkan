@@ -23,37 +23,15 @@ namespace engine {
 
     }
 
-    Buffer::Buffer (Device& device, std::size_t size, vk::BufferUsageFlags usage, bool device_local) 
+    Buffer::Buffer (std::shared_ptr<Device> device, std::size_t size, vk::BufferUsageFlags usage, bool device_local) 
         : device(device), size(size), device_local(device_local) {
 
-        using enum vk::MemoryPropertyFlagBits;
-        using enum vk::BufferUsageFlagBits;
+        auto flags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
 
         if (device_local) {
-
-            create_buffer(eTransferSrc, eHostVisible | eHostCoherent);  
-            create_buffer(eTransferDst | usage, eDeviceLocal);
-        
-        } else {
-            create_buffer(usage, eHostVisible | eHostCoherent);
-            data_location = device.get_handle().mapMemory(memory, 0, size);
+            usage = vk::BufferUsageFlagBits::eTransferDst | usage;
+            flags = vk::MemoryPropertyFlagBits::eDeviceLocal;
         }
-
-    }
-
-    void Buffer::destroy ( ) {
-
-        if (device_local) {
-            device.get_handle().destroyBuffer(staging_handle);
-            device.get_handle().freeMemory(staging_memory);
-        } else device.get_handle().unmapMemory(memory);
-
-        device.get_handle().destroyBuffer(handle);
-        device.get_handle().freeMemory(memory);
-
-    }
-
-    void Buffer::create_buffer (vk::BufferUsageFlags usage, vk::MemoryPropertyFlags flags) {
 
         auto create_info = vk::BufferCreateInfo {
             .flags = vk::BufferCreateFlags(),
@@ -63,21 +41,17 @@ namespace engine {
         };
 
         try {
-            auto buffer = device.get_handle().createBuffer(create_info);     
-            auto requirements = device.get_handle().getBufferMemoryRequirements(buffer);
-            auto index = get_memory_index(device.get_gpu(), requirements, flags);
+            handle = device->get_handle().createBuffer(create_info);     
+            auto requirements = device->get_handle().getBufferMemoryRequirements(handle);
+            auto index = get_memory_index(device->get_gpu(), requirements, flags);
 
             auto allocate_info = vk::MemoryAllocateInfo {
                 .allocationSize = requirements.size,
                 .memoryTypeIndex = index
             };
 
-            auto memory = device.get_handle().allocateMemory(allocate_info);
-            device.get_handle().bindBufferMemory(buffer, memory, 0);  
-
-            if (usage & vk::BufferUsageFlagBits::eTransferSrc) {
-                staging_handle = buffer; staging_memory = memory;
-            } else { handle = buffer; this->memory = memory; };
+            memory = device->get_handle().allocateMemory(allocate_info);
+            device->get_handle().bindBufferMemory(handle, memory, 0);  
 
         } catch (vk::SystemError) {
             LOG_ERROR("Failed to create buffer");
@@ -85,14 +59,24 @@ namespace engine {
 
     }
 
-    void Buffer::copy_buffer (vk::Buffer& source, vk::Buffer& destination, std::size_t size) {
+    Buffer::~Buffer ( ) {
 
-        auto indices = get_queue_family_indices(device.get_gpu(), device.get_surface());
+        if (!device_local && persistent_memory) 
+            device->get_handle().unmapMemory(memory);
+
+        device->get_handle().destroyBuffer(handle);
+        device->get_handle().freeMemory(memory);
+
+    }
+
+    void copy_buffer (std::shared_ptr<Device> device, const vk::Buffer& source, vk::Buffer& destination, std::size_t size) {
+
+        auto indices = get_queue_family_indices(device->get_gpu(), device->get_surface());
         auto create_info = vk::CommandPoolCreateInfo {
             .flags = vk::CommandPoolCreateFlagBits::eTransient,
             .queueFamilyIndex = indices.transfer_family.value()
         };
-        auto command_pool = device.get_handle().createCommandPool(create_info);
+        auto command_pool = device->get_handle().createCommandPool(create_info);
 
         auto allocate_info = vk::CommandBufferAllocateInfo {
             .commandPool = command_pool,
@@ -100,7 +84,7 @@ namespace engine {
             .commandBufferCount = 1,
         };
 
-        auto command_buffer = device.get_handle().allocateCommandBuffers(allocate_info).at(0);
+        auto command_buffer = device->get_handle().allocateCommandBuffers(allocate_info).at(0);
 
         auto begin_info = vk::CommandBufferBeginInfo {
             .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit
@@ -121,11 +105,11 @@ namespace engine {
             .pCommandBuffers = &command_buffer
         };
 
-        auto transit_queue = device.get_handle().getQueue(indices.transfer_family.value(), 0);
+        auto transit_queue = device->get_handle().getQueue(indices.transfer_family.value(), 0);
         transit_queue.submit(submit_info);
 
         transit_queue.waitIdle();
-        device.get_handle().destroyCommandPool(command_pool);
+        device->get_handle().destroyCommandPool(command_pool);
 
     }
 
