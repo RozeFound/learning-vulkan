@@ -54,42 +54,18 @@ namespace engine {
         io.FontDefault = robotoFont;
 
         auto indices = get_queue_family_indices(device->get_gpu(), device->get_surface());
-        auto create_info = vk::CommandPoolCreateInfo {
-            .flags = vk::CommandPoolCreateFlagBits::eTransient,
-            .queueFamilyIndex = indices.transfer_family.value()
-        };
-        auto command_pool = device->get_handle().createCommandPool(create_info);
-
-        auto allocate_info = vk::CommandBufferAllocateInfo {
-            .commandPool = command_pool,
-            .level = vk::CommandBufferLevel::ePrimary,
-            .commandBufferCount = 1,
-        };
-
-        auto command_buffer = device->get_handle().allocateCommandBuffers(allocate_info).at(0);
-        auto transit_queue = device->get_handle().getQueue(indices.transfer_family.value(), 0);
-
-        auto begin_info = vk::CommandBufferBeginInfo {
-            .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit
-        };
+        auto transient_buffer = TransientBuffer(device->get_handle(), indices);
 
         try {
-            command_buffer.begin(begin_info);
+            auto command_buffer = transient_buffer.get();
             ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
-            command_buffer.end();
-
-            auto submit_info = vk::SubmitInfo {
-                .commandBufferCount = 1,
-                .pCommandBuffers = &command_buffer
-            };
-            transit_queue.submit(submit_info);            
+            transient_buffer.submit();     
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to create font texture");
         }
 
         device->get_handle().waitIdle();
         ImGui_ImplVulkan_DestroyFontUploadObjects();
-        device->get_handle().destroyCommandPool(command_pool);
 
     }
 

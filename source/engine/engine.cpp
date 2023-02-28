@@ -5,6 +5,7 @@
 
 #include "device.hpp"
 #include "engine.hpp"
+#include "image.hpp"
 #include "logging.hpp"
 #include "pipeline.hpp"
 #include "utils.hpp"
@@ -73,6 +74,12 @@ namespace engine {
         swapchain = std::make_unique<SwapChain>(device, renderpass);
         max_frames_in_flight = swapchain->get_frames().size();
 
+        for (auto& frame : swapchain->get_frames()) {
+            frame.uniform = std::make_unique<Buffer>(device, sizeof(UniformBufferObject), vk::BufferUsageFlagBits::eUniformBuffer);  
+            frame.storage = std::make_unique<Buffer>(device, 1024 * sizeof(glm::mat4x4), vk::BufferUsageFlagBits::eStorageBuffer, true);
+            frame.texture = std::make_unique<Image>(device, "textures/image.jpg");
+        }
+
         make_descriptor_pool();
         descriptor_set_layout = create_descriptor_set_layout(device);
 
@@ -92,22 +99,16 @@ namespace engine {
 
     void Engine::remake_swapchain ( ) {
 
-        int width = 0, height = 0;
-        while (width == 0 || height == 0) {
-            glfwGetFramebufferSize(const_cast<GLFWwindow*>(device->get_window()), &width, &height);
-            glfwWaitEvents();
-        }
+        is_framebuffer_resized = false;
+        
+        auto new_extent = device->get_extent();
+        auto old_extent = swapchain->get_extent();
 
-        if (width == device->get_extent().width 
-            && height == device->get_extent().height)
-            return;
-
+        if (new_extent == old_extent) return;
         device->get_handle().waitIdle();
-
         swapchain->create_handle();
 
         frame_number = 0;
-        is_framebuffer_resized = false;
 
     }
 
@@ -139,6 +140,10 @@ namespace engine {
             vk::DescriptorPoolSize {
                 .type = vk::DescriptorType::eStorageBuffer,
                 .descriptorCount = max_frames_in_flight
+            },
+            vk::DescriptorPoolSize {
+                .type = vk::DescriptorType::eCombinedImageSampler,
+                .descriptorCount = max_frames_in_flight
             }
         };
 
@@ -162,7 +167,7 @@ namespace engine {
 
         auto& frame = swapchain->get_frames().at(index);
 
-        glm::vec3 eye = { 2.0f, 2.0f, -1.0f };
+        glm::vec3 eye = { .25f, 0.25f, -1.0f };
         glm::vec3 center = { 0.0f, 0.0f, 0.0f };
         glm::vec3 up = { 0.0f, 0.0f, -1.0f };
 
@@ -170,16 +175,21 @@ namespace engine {
 
         auto ubo = UniformBufferObject {
             .view = glm::lookAt(eye, center, up),
-            .projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 10.0f)
+            .projection = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 10.0f)
         }; ubo.projection[1][1] *= -1; frame.uniform->write(&ubo, sizeof(ubo), true);
 
-        auto positions = std::vector<glm::mat4x4>();
-        positions.reserve(scene.triangle_positions.size());
+        static std::vector<bool> positions_written = { false, false, false };
 
-        for (const auto& position : scene.triangle_positions)
-            positions.push_back(glm::translate(glm::mat4x4(1.f), position));
+        if(!positions_written.at(index)) {
+            auto positions = std::vector<glm::mat4x4>();
+            positions.reserve(scene.triangle_positions.size());
 
-        frame.storage->write(positions.data(), positions.size() * sizeof(glm::mat4x4), true);
+            for (const auto& position : scene.triangle_positions)
+                positions.push_back(glm::translate(glm::mat4x4(1.f), position));
+
+            frame.storage->write(positions.data(), positions.size() * sizeof(glm::mat4x4));
+            positions_written.at(index) = true;
+        }        
 
     }
 
@@ -211,6 +221,7 @@ namespace engine {
 
         auto offsets = std::array<vk::DeviceSize, 1> {}; 
         command_buffer.bindVertexBuffers(0, 1, &asset->vertex_buffer->get_handle(), offsets.data());
+        command_buffer.bindIndexBuffer(asset->index_buffer->get_handle(), 0, vk::IndexType::eUint16);
 
         auto viewport = vk::Viewport {
             .width = static_cast<float>(swapchain->get_extent().width),
@@ -228,9 +239,10 @@ namespace engine {
         command_buffer.setScissor(0, 1, &scissor);
 
         prepare_frame(index, scene);
-        auto vertex_count = to_u32(asset->vertices.size());
+        auto index_count = to_u32(asset->indices.size());
         auto instance_count = to_u32(scene.triangle_positions.size());
-        command_buffer.draw(vertex_count,instance_count, 0, 0);
+        command_buffer.drawIndexed(index_count, instance_count, 0, 0, 0);
+
 
         if (is_imgui_enabled) imgui->draw(command_buffer, on_render);
         command_buffer.endRenderPass();
@@ -245,6 +257,8 @@ namespace engine {
 
     void Engine::draw (Scene& scene) {
 
+        if (is_framebuffer_resized) return remake_swapchain();
+
         constexpr auto timeout = std::numeric_limits<uint64_t>::max();
         const auto& frame = swapchain->get_frames().at(frame_number);
 
@@ -252,7 +266,7 @@ namespace engine {
         device->get_handle().resetFences(frame.in_flight);
 
         auto image_result = device->get_handle().acquireNextImageKHR(swapchain->get_handle(), timeout, frame.image_available);
-            
+
         frame.commands.reset();
 
         record_draw_commands(frame_number, scene);
@@ -284,10 +298,6 @@ namespace engine {
         };
 
         auto present_result = present_queue.presentKHR(present_info);
-
-        if (present_result == vk::Result::eErrorOutOfDateKHR 
-            || present_result == vk::Result::eSuboptimalKHR 
-            || is_framebuffer_resized) { remake_swapchain(); return; };
 
         frame_number = (frame_number + 1) % max_frames_in_flight;
     }

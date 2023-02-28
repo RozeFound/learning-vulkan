@@ -11,8 +11,8 @@ namespace engine {
 
         make_instance();
 
-        if (glfwCreateWindowSurface(instance, window, nullptr, (VkSurfaceKHR*)&surface) != VK_SUCCESS)
-            LOG_ERROR("Cannot abstract GLFW surface for Vulkan");
+        auto result = glfwCreateWindowSurface(instance, window, nullptr, reinterpret_cast<VkSurfaceKHR*>(&surface));
+        if (result != VK_SUCCESS) LOG_ERROR("Cannot abstract GLFW surface for Vulkan");
 
         choose_physical_device();
         create_handle();
@@ -128,6 +128,7 @@ namespace engine {
         }
 
         auto device_features = vk::PhysicalDeviceFeatures();
+        device_features.samplerAnisotropy = VK_TRUE;
 
         auto extensions = std::vector {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
         auto layers = std::vector<const char*>();

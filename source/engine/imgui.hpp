@@ -29,7 +29,6 @@ namespace engine {
 
         public:
 
-        ImGUI ( ) = default;
         ImGUI (std::shared_ptr<Device>, std::size_t image_count, vk::RenderPass& renderpass);
         ~ImGUI ( );
 

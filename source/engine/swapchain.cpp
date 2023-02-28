@@ -24,7 +24,7 @@ namespace engine {
         auto create_info = vk::SwapchainCreateInfoKHR {
             .flags = vk::SwapchainCreateFlagsKHR(),
             .surface = device->get_surface(), 
-            .minImageCount = capabilities.minImageCount,
+            .minImageCount = capabilities.minImageCount + 1,
             .imageFormat = device->get_format().format,
             .imageColorSpace = device->get_format().colorSpace,
             .imageExtent = extent,
@@ -130,11 +130,6 @@ namespace engine {
             frame.in_flight = make_fence(device->get_handle());
         }
 
-        for (auto& frame : frames) {
-            frame.uniform = std::make_unique<Buffer>(device, sizeof(UniformBufferObject), vk::BufferUsageFlagBits::eUniformBuffer);  
-            frame.storage = std::make_unique<Buffer>(device, 1024 * sizeof(glm::mat4x4), vk::BufferUsageFlagBits::eStorageBuffer);
-        }
-
         make_framebuffers();
 
     }
@@ -207,7 +202,7 @@ namespace engine {
 
         for (auto& frame : frames) {
 
-            auto write_info = std::array<vk::WriteDescriptorSet, 2>();
+            auto write_info = std::array<vk::WriteDescriptorSet, 3>();
 
             auto uniform_buffer_info = vk::DescriptorBufferInfo {
                 .buffer = frame.uniform->get_handle(),
@@ -235,6 +230,21 @@ namespace engine {
                 .descriptorCount = 1,
                 .descriptorType = vk::DescriptorType::eStorageBuffer,
                 .pBufferInfo = &storage_buffer_info
+            };
+
+            auto image_info = vk::DescriptorImageInfo {
+                .sampler = frame.texture->get_sampler(),
+                .imageView = frame.texture->get_view(),
+                .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
+            };
+
+            write_info.at(2) = vk::WriteDescriptorSet {
+                .dstSet = frame.descriptor_set,
+                .dstBinding = 2,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = vk::DescriptorType::eCombinedImageSampler,
+                .pImageInfo = &image_info
             };
 
             device->get_handle().updateDescriptorSets(to_u32(write_info.size()), write_info.data(), 0, nullptr);

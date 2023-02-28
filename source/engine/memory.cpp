@@ -41,7 +41,7 @@ namespace engine {
         };
 
         try {
-            handle = device->get_handle().createBuffer(create_info);     
+            handle = device->get_handle().createBuffer(create_info);
             auto requirements = device->get_handle().getBufferMemoryRequirements(handle);
             auto index = get_memory_index(device->get_gpu(), requirements, flags);
 
@@ -52,7 +52,6 @@ namespace engine {
 
             memory = device->get_handle().allocateMemory(allocate_info);
             device->get_handle().bindBufferMemory(handle, memory, 0);  
-
         } catch (vk::SystemError) {
             LOG_ERROR("Failed to create buffer");
         }
@@ -72,25 +71,8 @@ namespace engine {
     void copy_buffer (std::shared_ptr<Device> device, const vk::Buffer& source, vk::Buffer& destination, std::size_t size) {
 
         auto indices = get_queue_family_indices(device->get_gpu(), device->get_surface());
-        auto create_info = vk::CommandPoolCreateInfo {
-            .flags = vk::CommandPoolCreateFlagBits::eTransient,
-            .queueFamilyIndex = indices.transfer_family.value()
-        };
-        auto command_pool = device->get_handle().createCommandPool(create_info);
-
-        auto allocate_info = vk::CommandBufferAllocateInfo {
-            .commandPool = command_pool,
-            .level = vk::CommandBufferLevel::ePrimary,
-            .commandBufferCount = 1,
-        };
-
-        auto command_buffer = device->get_handle().allocateCommandBuffers(allocate_info).at(0);
-
-        auto begin_info = vk::CommandBufferBeginInfo {
-            .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit
-        };
-
-        command_buffer.begin(begin_info);
+        auto transient_buffer = TransientBuffer(device->get_handle(), indices);
+        auto command_buffer = transient_buffer.get();
 
         auto copy_region = vk::BufferCopy {
             .size = size
@@ -98,18 +80,7 @@ namespace engine {
 
         command_buffer.copyBuffer(source, destination, 1, &copy_region);
 
-        command_buffer.end();
-
-        auto submit_info = vk::SubmitInfo {
-            .commandBufferCount = 1,
-            .pCommandBuffers = &command_buffer
-        };
-
-        auto transit_queue = device->get_handle().getQueue(indices.transfer_family.value(), 0);
-        transit_queue.submit(submit_info);
-
-        transit_queue.waitIdle();
-        device->get_handle().destroyCommandPool(command_pool);
+        transient_buffer.submit();
 
     }
 

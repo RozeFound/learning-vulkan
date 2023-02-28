@@ -71,6 +71,9 @@ set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "Le
 # Enable shader comilation
 include(cmake/shaders.cmake)
 
+# Add textures
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/textures DESTINATION ${PROJECT_BINARY_DIR})
+
 # Link dependencies
 target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt)
 target_link_libraries(${PROJECT_NAME} PRIVATE vulkan glfw glm)

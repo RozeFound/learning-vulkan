@@ -49,9 +49,15 @@ void App::on_render ( ) {
 
     ImGuiIO& io = ImGui::GetIO();
 
+    static float min_fps = 0;
+    static float max_fps = 0;
+
+    min_fps = std::min(min_fps, io.Framerate);
+    max_fps = std::max(max_fps, io.Framerate);
+
     ImGui::Begin("Performance", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text("Frametime %.3f/ms", 1000.0f / io.Framerate);
-    ImGui::Text("Framerate %.1f/s", io.Framerate);
+    ImGui::Text("FPS %.1f/s, min %.1f/s, max %.1f/s", io.Framerate, min_fps, max_fps);
     ImGui::End();
     
 

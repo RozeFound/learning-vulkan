@@ -7,7 +7,7 @@
 namespace engine {
 
     void copy_buffer (std::shared_ptr<Device> device, const vk::Buffer& source, vk::Buffer& destination, std::size_t size);
-    uint32_t get_memory_index (vk::PhysicalDevice&, vk::MemoryRequirements, vk::MemoryPropertyFlags);
+    uint32_t get_memory_index (const vk::PhysicalDevice&, vk::MemoryRequirements, vk::MemoryPropertyFlags);
 
     class Buffer {
 
@@ -24,7 +24,6 @@ namespace engine {
 
         public:
 
-        Buffer ( ) = default;
         Buffer (std::shared_ptr<Device> device, std::size_t size, vk::BufferUsageFlags usage, bool device_local = false);
         ~Buffer ( );
 

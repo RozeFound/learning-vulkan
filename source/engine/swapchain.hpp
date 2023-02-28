@@ -1,10 +1,12 @@
 #pragma once
 
+#include <memory>
 #include <vector>
 
 #include "essentials.hpp"
 
 #include "device.hpp"
+#include "image.hpp"
 #include "memory.hpp"
 
 namespace engine {
@@ -20,6 +22,7 @@ namespace engine {
 
             std::unique_ptr<Buffer> uniform;
             std::unique_ptr<Buffer> storage;
+            std::unique_ptr<Image> texture;
 
             vk::Semaphore image_available;
             vk::Semaphore render_finished;
@@ -38,7 +41,6 @@ namespace engine {
 
         public:
 
-        SwapChain ( ) = default;
         SwapChain (std::shared_ptr<Device> device, const vk::RenderPass& renderpass)
             : device(device), renderpass(renderpass) { create_handle(); };
         ~SwapChain ( );

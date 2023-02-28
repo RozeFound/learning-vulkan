@@ -41,7 +41,6 @@ namespace engine {
         void prepare ( );
         void prepare_frame (uint32_t index, Scene& scene);
 
-        void remake_swapchain ( );
 
         void make_command_pool ( );
         void make_descriptor_pool ( );
@@ -57,6 +56,7 @@ namespace engine {
         ~Engine ( );
 
         void draw (Scene& scene);
+        void remake_swapchain ( );
 
     };
 

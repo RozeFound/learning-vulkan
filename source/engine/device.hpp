@@ -23,7 +23,6 @@ namespace engine {
 
         public:
 
-        Device ( ) = default;
         Device (GLFWwindow*);
         ~Device ( );
 
