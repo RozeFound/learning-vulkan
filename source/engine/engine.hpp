@@ -7,7 +7,6 @@
 #include "mesh.hpp"
 #include "device.hpp"
 #include "swapchain.hpp"
-#include "../scene.hpp"
 #include "imgui.hpp"
 
 namespace engine {
@@ -39,13 +38,13 @@ namespace engine {
         vk::DescriptorSetLayout descriptor_set_layout;
 
         void prepare ( );
-        void prepare_frame (uint32_t index, Scene& scene);
+        void prepare_frame (uint32_t index);
 
 
         void make_command_pool ( );
         void make_descriptor_pool ( );
         
-        void record_draw_commands (uint32_t index, Scene& scene);
+        void record_draw_commands (uint32_t index);
 
     public:
 
@@ -55,7 +54,7 @@ namespace engine {
         Engine(GLFWwindow* window);
         ~Engine ( );
 
-        void draw (Scene& scene);
+        void draw ();
         void remake_swapchain ( );
 
     };

@@ -1,6 +1,7 @@
 #include <glm/glm.hpp>
 
 #include "device.hpp"
+#include "image.hpp"
 #include "pipeline.hpp"
 #include "shaders.hpp"
 #include "logging.hpp"
@@ -49,7 +50,7 @@ namespace engine {
             .rasterizerDiscardEnable = VK_FALSE,
             .polygonMode = vk::PolygonMode::eFill,
             .cullMode = vk::CullModeFlagBits::eBack,
-            .frontFace = vk::FrontFace::eClockwise,
+            .frontFace = vk::FrontFace::eCounterClockwise,
             .depthBiasEnable = VK_FALSE,
             .lineWidth = 1.f
         };
@@ -57,6 +58,14 @@ namespace engine {
         auto multisampling = vk::PipelineMultisampleStateCreateInfo {
             .flags = vk::PipelineMultisampleStateCreateFlags(),
             .sampleShadingEnable = VK_FALSE,
+        };
+
+        auto depth_stencil = vk::PipelineDepthStencilStateCreateInfo {
+            .depthTestEnable = VK_TRUE,
+            .depthWriteEnable = VK_TRUE,
+            .depthCompareOp = vk::CompareOp::eLess,
+            .depthBoundsTestEnable = VK_FALSE,
+            .stencilTestEnable = VK_FALSE
         };
 
         auto color_blend_attachment = vk::PipelineColorBlendAttachmentState {
@@ -88,7 +97,7 @@ namespace engine {
             .pViewportState = &viewport_state_info,
             .pRasterizationState = &rasterizer,
             .pMultisampleState = &multisampling,
-            .pDepthStencilState = nullptr,
+            .pDepthStencilState = &depth_stencil,
             .pColorBlendState = &color_blend_info,
             .pDynamicState = &dynamic_state_info,
             .layout = layout,
@@ -113,10 +122,18 @@ namespace engine {
 
     vk::PipelineLayout create_pipeline_layout (std::shared_ptr<Device> device, const vk::DescriptorSetLayout& layout) {
 
+        auto push_constance_range = vk::PushConstantRange {
+            .stageFlags = vk::ShaderStageFlagBits::eVertex,
+            .offset = 0,
+            .size = sizeof(UniformBufferObject)
+        };
+
         auto create_info = vk::PipelineLayoutCreateInfo {
             .flags = vk::PipelineLayoutCreateFlags(),
             .setLayoutCount = 1,
-            .pSetLayouts = &layout
+            .pSetLayouts = &layout,
+            .pushConstantRangeCount = 1,
+            .pPushConstantRanges = &push_constance_range
         };
 
         try {
@@ -135,18 +152,6 @@ namespace engine {
         auto bindings = std::array {
             vk::DescriptorSetLayoutBinding {
                 .binding = 0,
-                .descriptorType = vk::DescriptorType::eUniformBuffer,
-                .descriptorCount = 1,
-                .stageFlags = vk::ShaderStageFlagBits::eVertex,
-            },
-            vk::DescriptorSetLayoutBinding {
-                .binding = 1,
-                .descriptorType = vk::DescriptorType::eStorageBuffer,
-                .descriptorCount = 1,
-                .stageFlags = vk::ShaderStageFlagBits::eVertex,
-            },
-            vk::DescriptorSetLayoutBinding {
-                .binding = 2,
                 .descriptorType = vk::DescriptorType::eCombinedImageSampler,
                 .descriptorCount = 1,
                 .stageFlags = vk::ShaderStageFlagBits::eFragment,
@@ -173,7 +178,7 @@ namespace engine {
 
     vk::RenderPass create_renderpass (std::shared_ptr<Device> device) {
 
-        auto attachment = vk::AttachmentDescription {
+        auto color_attachment = vk::AttachmentDescription {
             .flags = vk::AttachmentDescriptionFlags(),
             .format = device->get_format().format,
             .samples = vk::SampleCountFlagBits::e1,
@@ -185,29 +190,49 @@ namespace engine {
             .finalLayout = vk::ImageLayout::ePresentSrcKHR
         };
 
-        auto attachment_reference = vk::AttachmentReference {
+        auto color_attachment_reference = vk::AttachmentReference {
             .attachment = 0,
             .layout = vk::ImageLayout::eColorAttachmentOptimal
+        };
+
+        auto depth_attachment = vk::AttachmentDescription {
+            .flags = vk::AttachmentDescriptionFlags(),
+            .format = DepthImage::find_supported_format(device),
+            .samples = vk::SampleCountFlagBits::e1,
+            .loadOp = vk::AttachmentLoadOp::eClear,
+            .storeOp = vk::AttachmentStoreOp::eDontCare,
+            .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+            .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+            .initialLayout = vk::ImageLayout::eUndefined,
+            .finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal
+        };
+
+        auto depth_attachment_reference = vk::AttachmentReference {
+            .attachment = 1,
+            .layout = vk::ImageLayout::eDepthStencilAttachmentOptimal
         };
 
         auto subpass = vk::SubpassDescription {
             .flags = vk::SubpassDescriptionFlags(),
             .pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
             .colorAttachmentCount = 1,
-            .pColorAttachments = &attachment_reference
+            .pColorAttachments = &color_attachment_reference,
+            .pDepthStencilAttachment = &depth_attachment_reference
         };
 
         auto subpass_dependency = vk::SubpassDependency {
             .srcSubpass = VK_SUBPASS_EXTERNAL,
-            .srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-            .dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-            .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite
+            .srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
+            .dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eLateFragmentTests,
+            .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite
         };
+
+        auto attachments = std::array { color_attachment, depth_attachment };
 
         auto create_info = vk::RenderPassCreateInfo {
             .flags = vk::RenderPassCreateFlags(),
-            .attachmentCount = 1,
-            .pAttachments = &attachment,
+            .attachmentCount = to_u32(attachments.size()),
+            .pAttachments = attachments.data(),
             .subpassCount = 1,
             .pSubpasses = &subpass,
             .dependencyCount = 1,

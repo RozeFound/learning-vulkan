@@ -1,6 +1,7 @@
 #include <limits>
 #include <vector>
 
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "device.hpp"
@@ -74,10 +75,10 @@ namespace engine {
         swapchain = std::make_unique<SwapChain>(device, renderpass);
         max_frames_in_flight = swapchain->get_frames().size();
 
+        auto texture = std::make_shared<Image>(device, "textures/image.jpg");
+
         for (auto& frame : swapchain->get_frames()) {
-            frame.uniform = std::make_unique<Buffer>(device, sizeof(UniformBufferObject), vk::BufferUsageFlagBits::eUniformBuffer);  
-            frame.storage = std::make_unique<Buffer>(device, 1024 * sizeof(glm::mat4x4), vk::BufferUsageFlagBits::eStorageBuffer, true);
-            frame.texture = std::make_unique<Image>(device, "textures/image.jpg");
+            frame.texture = texture; // we don't need several copies of texture, since it statically loaded from file
         }
 
         make_descriptor_pool();
@@ -134,14 +135,6 @@ namespace engine {
 
         auto pool_sizes = std::array {
             vk::DescriptorPoolSize {
-                .type = vk::DescriptorType::eUniformBuffer,
-                .descriptorCount = max_frames_in_flight
-            },
-            vk::DescriptorPoolSize {
-                .type = vk::DescriptorType::eStorageBuffer,
-                .descriptorCount = max_frames_in_flight
-            },
-            vk::DescriptorPoolSize {
                 .type = vk::DescriptorType::eCombinedImageSampler,
                 .descriptorCount = max_frames_in_flight
             }
@@ -163,37 +156,28 @@ namespace engine {
 
     }
 
-    void Engine::prepare_frame (uint32_t index, Scene& scene) {
+    void Engine::prepare_frame (uint32_t index) {
 
         auto& frame = swapchain->get_frames().at(index);
 
-        glm::vec3 eye = { .25f, 0.25f, -1.0f };
-        glm::vec3 center = { 0.0f, 0.0f, 0.0f };
-        glm::vec3 up = { 0.0f, 0.0f, -1.0f };
+        static auto startTime = std::chrono::high_resolution_clock::now();
+
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
         auto aspect = static_cast<float>(swapchain->get_extent().width) / static_cast<float>(swapchain->get_extent().height);
 
         auto ubo = UniformBufferObject {
-            .view = glm::lookAt(eye, center, up),
-            .projection = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 10.0f)
-        }; ubo.projection[1][1] *= -1; frame.uniform->write(&ubo, sizeof(ubo), true);
+            .model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
+            .view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
+            .projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 10.0f)
+        }; ubo.projection[1][1] *= -1;
 
-        static std::vector<bool> positions_written = { false, false, false };
-
-        if(!positions_written.at(index)) {
-            auto positions = std::vector<glm::mat4x4>();
-            positions.reserve(scene.triangle_positions.size());
-
-            for (const auto& position : scene.triangle_positions)
-                positions.push_back(glm::translate(glm::mat4x4(1.f), position));
-
-            frame.storage->write(positions.data(), positions.size() * sizeof(glm::mat4x4));
-            positions_written.at(index) = true;
-        }        
+        frame.commands.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(ubo), &ubo);
 
     }
 
-    void Engine::record_draw_commands (uint32_t index, Scene& scene) {
+    void Engine::record_draw_commands (uint32_t index) {
 
         auto& frame = swapchain->get_frames().at(index);
         auto& command_buffer = frame.commands;
@@ -205,14 +189,17 @@ namespace engine {
             LOG_ERROR("Failed to begin command record");
         }
 
-        auto clear_color = vk::ClearValue { std::array {1.f, 1.f, 1.f, 1.f} };
+        auto clear_values = std::array {
+            vk::ClearValue { std::array { 1.f, 1.f, 1.f, 1.f } },
+            vk::ClearValue { .depthStencil = { 1.f, 0 } }
+        };
 
         auto renderpass_info = vk::RenderPassBeginInfo {
             .renderPass = renderpass,
             .framebuffer = frame.buffer,
             .renderArea = {{0, 0}, swapchain->get_extent()},
-            .clearValueCount = 1,
-            .pClearValues = &clear_color
+            .clearValueCount = to_u32(clear_values.size()),
+            .pClearValues = clear_values.data()
         };
 
         command_buffer.beginRenderPass(renderpass_info, vk::SubpassContents::eInline);
@@ -238,9 +225,9 @@ namespace engine {
 
         command_buffer.setScissor(0, 1, &scissor);
 
-        prepare_frame(index, scene);
+        prepare_frame(index);
         auto index_count = to_u32(asset->indices.size());
-        auto instance_count = to_u32(scene.triangle_positions.size());
+        auto instance_count = 1;
         command_buffer.drawIndexed(index_count, instance_count, 0, 0, 0);
 
 
@@ -255,7 +242,7 @@ namespace engine {
 
     }
 
-    void Engine::draw (Scene& scene) {
+    void Engine::draw () {
 
         if (is_framebuffer_resized) return remake_swapchain();
 
@@ -269,7 +256,7 @@ namespace engine {
 
         frame.commands.reset();
 
-        record_draw_commands(frame_number, scene);
+        record_draw_commands(frame_number);
         
         vk::PipelineStageFlags wait_stages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
 

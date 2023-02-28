@@ -1,6 +1,8 @@
 #include <cstddef>
 #include <limits>
+#include <memory>
 
+#include "image.hpp"
 #include "utils.hpp"
 #include "swapchain.hpp"
 #include "logging.hpp"
@@ -64,6 +66,7 @@ namespace engine {
                 }
                 LOG_INFO("Destroying Old Swapchain");
                 device->get_handle().destroySwapchainKHR(create_info.oldSwapchain);
+                delete depth_buffer.release();
 
             }
 
@@ -136,9 +139,11 @@ namespace engine {
 
     void SwapChain::make_framebuffers ( ) {
 
+        depth_buffer = std::make_unique<DepthImage>(device, extent.width, extent.height);
+
         for (auto& frame : frames) {
 
-            auto attachments = std::vector { frame.view };
+            auto attachments = std::array { frame.view, depth_buffer->get_view() };
 
             auto create_info = vk::FramebufferCreateInfo {
                 .flags = vk::FramebufferCreateFlags(),
@@ -202,35 +207,7 @@ namespace engine {
 
         for (auto& frame : frames) {
 
-            auto write_info = std::array<vk::WriteDescriptorSet, 3>();
-
-            auto uniform_buffer_info = vk::DescriptorBufferInfo {
-                .buffer = frame.uniform->get_handle(),
-                .range = frame.uniform->get_size(),
-            };
-
-            write_info.at(0) = vk::WriteDescriptorSet {
-                .dstSet = frame.descriptor_set,
-                .dstBinding = 0,
-                .dstArrayElement = 0,
-                .descriptorCount = 1,
-                .descriptorType = vk::DescriptorType::eUniformBuffer,
-                .pBufferInfo = &uniform_buffer_info
-            };
-
-            auto storage_buffer_info = vk::DescriptorBufferInfo {
-                .buffer = frame.storage->get_handle(),
-                .range = frame.storage->get_size()
-            };
-
-            write_info.at(1) = vk::WriteDescriptorSet {
-                .dstSet = frame.descriptor_set,
-                .dstBinding = 1,
-                .dstArrayElement = 0,
-                .descriptorCount = 1,
-                .descriptorType = vk::DescriptorType::eStorageBuffer,
-                .pBufferInfo = &storage_buffer_info
-            };
+            auto write_info = std::array<vk::WriteDescriptorSet, 1>();
 
             auto image_info = vk::DescriptorImageInfo {
                 .sampler = frame.texture->get_sampler(),
@@ -238,9 +215,9 @@ namespace engine {
                 .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
             };
 
-            write_info.at(2) = vk::WriteDescriptorSet {
+            write_info.at(0) = vk::WriteDescriptorSet {
                 .dstSet = frame.descriptor_set,
-                .dstBinding = 2,
+                .dstBinding = 0,
                 .dstArrayElement = 0,
                 .descriptorCount = 1,
                 .descriptorType = vk::DescriptorType::eCombinedImageSampler,

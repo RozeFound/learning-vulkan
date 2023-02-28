@@ -37,7 +37,28 @@ namespace engine {
         constexpr const std::size_t get_width ( ) const { return width; };
         constexpr const std::size_t get_height ( ) const { return height; };
 
+    };
 
+    class DepthImage {
+
+        std::size_t width, height;
+
+        std::shared_ptr<Device> device;
+
+        vk::Image handle;
+        vk::ImageView view;
+        vk::DeviceMemory memory;
+
+        void create_handle ( );
+        void create_view ( );
+
+        public:
+
+        DepthImage (std::shared_ptr<Device> device, std::size_t width, std::size_t height);
+        ~DepthImage ( );
+
+        static vk::Format find_supported_format (std::shared_ptr<Device> device);
+        constexpr const vk::ImageView& get_view ( ) const { return view; };
 
     };
 

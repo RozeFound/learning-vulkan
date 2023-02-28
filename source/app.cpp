@@ -3,7 +3,6 @@
 #include <imgui/imgui.h>
 
 #include "app.hpp"
-#include "scene.hpp"
 #include "engine/logging.hpp"
 
 App::App (std::size_t width, std::size_t height, std::string_view title) {
@@ -65,12 +64,10 @@ void App::on_render ( ) {
 
 void App::run ( ) {
 
-    Scene scene;
-
     while (!glfwWindowShouldClose(window)) {
 
         glfwPollEvents();
-        graphics_engine->draw(scene);
+        graphics_engine->draw();
         calculate_framerate();
 
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)

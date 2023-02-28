@@ -1,3 +1,4 @@
+#include <stdexcept>
 #include <vector>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -201,6 +202,97 @@ namespace engine {
                 0, nullptr, 0, nullptr, 1, &use_barrier);
 
         transient_buffer.submit();
+
+    }
+
+    DepthImage::DepthImage (std::shared_ptr<Device> device, std::size_t width, std::size_t height) 
+        : device(device), width(width), height(height) {
+
+        create_handle();
+        create_view();
+
+    }
+
+    DepthImage::~DepthImage ( ) {
+
+        device->get_handle().destroyImageView(view);
+        device->get_handle().destroyImage(handle);
+        device->get_handle().freeMemory(memory);
+
+    }
+
+    void DepthImage::create_handle ( ) {
+
+        auto create_info = vk::ImageCreateInfo {
+            .flags = vk::ImageCreateFlags(),
+            .imageType = vk::ImageType::e2D,
+            .format = find_supported_format(device),
+            .extent = {to_u32(width), to_u32(height), 1},
+            .mipLevels = 1,
+            .arrayLayers = 1,
+            .samples = vk::SampleCountFlagBits::e1,
+            .tiling = vk::ImageTiling::eOptimal,
+            .usage = vk::ImageUsageFlagBits::eDepthStencilAttachment,
+            .sharingMode = vk::SharingMode::eExclusive,
+            .initialLayout = vk::ImageLayout::eUndefined
+        };
+
+        try {
+            handle = device->get_handle().createImage(create_info);
+
+            auto requirements = device->get_handle().getImageMemoryRequirements(handle);
+            auto index = get_memory_index(device->get_gpu(), requirements, vk::MemoryPropertyFlagBits::eDeviceLocal);
+
+            auto allocate_info = vk::MemoryAllocateInfo {
+                .allocationSize = requirements.size,
+                .memoryTypeIndex = index
+            };
+
+            memory = device->get_handle().allocateMemory(allocate_info);
+            device->get_handle().bindImageMemory(handle, memory, 0);
+            LOG_INFO("Successfully created Image");
+        } catch (vk::SystemError error) {
+            LOG_ERROR("Failed to create Image");
+        }
+
+    }
+
+    void DepthImage::create_view ( ) {
+
+        auto subres_range = vk::ImageSubresourceRange {
+            .aspectMask = vk::ImageAspectFlagBits::eDepth,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        };
+
+        auto create_info = vk::ImageViewCreateInfo {
+            .flags = vk::ImageViewCreateFlags(),
+            .image = handle,
+            .viewType = vk::ImageViewType::e2D,
+            .format = find_supported_format(device),
+            .components = vk::ComponentMapping(),
+            .subresourceRange = subres_range
+        };
+
+        view = device->get_handle().createImageView(create_info);
+
+    }
+
+    vk::Format DepthImage::find_supported_format (std::shared_ptr<Device> device) {
+
+        auto candidates = { vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint };
+
+        for (const auto& format : candidates) {
+
+            auto properties = device->get_gpu().getFormatProperties(format);
+
+            if (properties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
+                return format;
+        }
+
+        throw std::runtime_error("Failed to retrieve Depth Format");
 
     }
 

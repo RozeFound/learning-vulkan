@@ -14,25 +14,29 @@ namespace engine {
     class SwapChain {
 
         struct Frame {
+
             vk::Image image;
             vk::ImageView view;
+
             vk::Framebuffer buffer;
+
             vk::CommandBuffer commands;
             vk::DescriptorSet descriptor_set;
 
-            std::unique_ptr<Buffer> uniform;
-            std::unique_ptr<Buffer> storage;
-            std::unique_ptr<Image> texture;
+            std::shared_ptr<Image> texture;
 
             vk::Semaphore image_available;
             vk::Semaphore render_finished;
             vk::Fence in_flight;
+
         };
 
         vk::SwapchainKHR handle;
         std::vector<Frame> frames;
         vk::RenderPass renderpass;
         vk::Extent2D extent;
+
+        std::unique_ptr<DepthImage> depth_buffer;
 
         std::shared_ptr<Device> device;
 
