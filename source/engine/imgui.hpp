@@ -17,7 +17,7 @@ namespace engine {
 
         vk::DescriptorPool descriptor_pool;
 
-        std::shared_ptr<Device> device;
+        std::shared_ptr<Device> device = Device::get();
         vk::RenderPass renderpass;
 
         uint32_t image_count;
@@ -29,7 +29,7 @@ namespace engine {
 
         public:
 
-        ImGUI (std::shared_ptr<Device>, std::size_t image_count, vk::RenderPass& renderpass);
+        ImGUI (std::size_t image_count, vk::RenderPass& renderpass);
         ~ImGUI ( );
 
         void draw (vk::CommandBuffer&, std::function<void()>);

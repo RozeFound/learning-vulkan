@@ -1,13 +1,14 @@
 #include <fstream>
+#include <stdexcept>
 #include <vector>
 
+#include "device.hpp"
 #include "logging.hpp"
 #include "shaders.hpp"
 
 namespace engine {
 
-    Shader::Shader (const vk::Device& device, std::filesystem::path path)
-        : device(device) {
+    Shader::Shader (std::filesystem::path path) {
 
         LOG_INFO("Creating Shader...");
 
@@ -20,26 +21,19 @@ namespace engine {
         vertex_stage = vk::PipelineShaderStageCreateInfo {
             .flags = vk::PipelineShaderStageCreateFlags(),
             .stage = vk::ShaderStageFlagBits::eVertex,
-            .module = vertex_module,
+            .module = vertex_module.get(),
             .pName = "main"
         };
 
         fragment_stage = vk::PipelineShaderStageCreateInfo {
             .flags = vk::PipelineShaderStageCreateFlags(),
             .stage = vk::ShaderStageFlagBits::eFragment,
-            .module = fragment_module,
+            .module = fragment_module.get(),
             .pName = "main"
         };
     }
 
-    Shader::~Shader ( ) {
-
-        device.destroyShaderModule(vertex_module);
-        device.destroyShaderModule(fragment_module);
-
-    }
-
-    vk::ShaderModule Shader::create_module (std::vector<std::byte> code) {
+    vk::UniqueShaderModule Shader::create_module (std::vector<std::byte> code) {
 
         auto create_info = vk::ShaderModuleCreateInfo {
                 .flags = vk::ShaderModuleCreateFlags(),
@@ -48,12 +42,11 @@ namespace engine {
             };
 
         try {
-            auto result = device.createShaderModule(create_info);
+            auto result = Device::get()->get_handle().createShaderModuleUnique(create_info);
             LOG_INFO("Successfully created shader module");
             return result;
         } catch (vk::SystemError err) {
-            LOG_WARNING("Failed to create shader module");
-            return nullptr;
+            throw std::runtime_error("Failed to create shader module");
         };
 
     }

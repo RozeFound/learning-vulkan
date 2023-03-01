@@ -18,7 +18,7 @@ namespace engine {
         std::unique_ptr<Buffer> vertex_buffer;
         std::unique_ptr<Buffer> index_buffer;
 
-        Mesh (std::shared_ptr<Device> device);
+        Mesh ( );
 
     };
 

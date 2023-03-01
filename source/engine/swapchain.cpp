@@ -37,7 +37,7 @@ namespace engine {
             .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
             .presentMode = present_mode,
             .clipped = VK_TRUE,
-            .oldSwapchain = handle
+            .oldSwapchain = handle.get()
         };      
 
         auto indices = get_queue_family_indices(device->get_gpu(), device->get_surface());
@@ -50,26 +50,7 @@ namespace engine {
         } else create_info.imageSharingMode = vk::SharingMode::eExclusive;
 
         try {
-
-            handle = device->get_handle().createSwapchainKHR(create_info);
-
-            if (create_info.oldSwapchain) {
-
-                LOG_INFO("Destroying Old Swapchain Frames");
-                for (const auto& frame : frames) {
-                    device->get_handle().destroyFramebuffer(frame.buffer);
-                    device->get_handle().destroyImageView(frame.view);
-
-                    device->get_handle().destroySemaphore(frame.image_available);
-                    device->get_handle().destroySemaphore(frame.render_finished);
-                    device->get_handle().destroyFence(frame.in_flight);
-                }
-                LOG_INFO("Destroying Old Swapchain");
-                device->get_handle().destroySwapchainKHR(create_info.oldSwapchain);
-                delete depth_buffer.release();
-
-            }
-
+            handle = device->get_handle().createSwapchainKHRUnique(create_info);
             LOG_INFO("Successfully created SwapChain");
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to create SwapChain");
@@ -79,26 +60,9 @@ namespace engine {
 
     }
 
-    SwapChain::~SwapChain ( ) {
-
-        LOG_INFO("Destroying Swapchain Frames");
-        for (const auto& frame : frames) {
-            device->get_handle().destroyFramebuffer(frame.buffer);
-            device->get_handle().destroyImageView(frame.view);
-
-            device->get_handle().destroySemaphore(frame.image_available);
-            device->get_handle().destroySemaphore(frame.render_finished);
-            device->get_handle().destroyFence(frame.in_flight);
-        }
-            
-        LOG_INFO("Destroying Swapchain");
-        device->get_handle().destroySwapchainKHR(handle);
-
-    }
-
     void SwapChain::make_frames ( ) {
 
-        auto images = device->get_handle().getSwapchainImagesKHR(handle);
+        auto images = device->get_handle().getSwapchainImagesKHR(handle.get());
         frames.resize(images.size());
 
         for (size_t i = 0; i < images.size(); i++) {
@@ -121,7 +85,7 @@ namespace engine {
             };
 
 			frames.at(i).image = images.at(i);
-			frames.at(i).view = device->get_handle().createImageView(create_info);
+			frames.at(i).view = device->get_handle().createImageViewUnique(create_info);
 
 		};
 
@@ -139,11 +103,11 @@ namespace engine {
 
     void SwapChain::make_framebuffers ( ) {
 
-        depth_buffer = std::make_unique<DepthImage>(device, extent.width, extent.height);
+        depth_buffer = std::make_unique<DepthImage>(extent.width, extent.height);
 
         for (auto& frame : frames) {
 
-            auto attachments = std::array { frame.view, depth_buffer->get_view() };
+            auto attachments = std::array { frame.view.get(), depth_buffer->get_view() };
 
             auto create_info = vk::FramebufferCreateInfo {
                 .flags = vk::FramebufferCreateFlags(),
@@ -156,7 +120,7 @@ namespace engine {
             };
 
             try {
-                frame.buffer = device->get_handle().createFramebuffer(create_info);
+                frame.buffer = device->get_handle().createFramebufferUnique(create_info);
             } catch (vk::SystemError err) {
                 LOG_ERROR("Failed to create Framebuffer");
             }

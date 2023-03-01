@@ -11,11 +11,12 @@
 
 namespace engine {
     
-    Image::Image (std::shared_ptr<Device> device, std::string_view path) : device(device) {
+    Image::Image (std::string_view path) {
 
         int width, height, channels;
 
-        auto pixels = reinterpret_cast<std::byte*>(stbi_load(path.data(), &width, &height, &channels, 4));
+        auto stbi_image = stbi_load(path.data(), &width, &height, &channels, 4);
+        auto pixels = reinterpret_cast<std::byte*>(stbi_image);
 
         this->width = width;
         this->height = height;
@@ -31,8 +32,8 @@ namespace engine {
 
     }
 
-    Image::Image (std::shared_ptr<Device> device, std::size_t width, std::size_t height, std::vector<std::byte> pixels)
-        : device(device), width(width), height(height) { 
+    Image::Image (std::size_t width, std::size_t height, std::vector<std::byte> pixels)
+        : width(width), height(height) { 
 
         create_handle();
         create_view();
@@ -70,7 +71,7 @@ namespace engine {
             handle = device->get_handle().createImage(create_info);
 
             auto requirements = device->get_handle().getImageMemoryRequirements(handle);
-            auto index = get_memory_index(device->get_gpu(), requirements, vk::MemoryPropertyFlagBits::eDeviceLocal);
+            auto index = get_memory_index(requirements, vk::MemoryPropertyFlagBits::eDeviceLocal);
 
             auto allocate_info = vk::MemoryAllocateInfo {
                 .allocationSize = requirements.size,
@@ -138,7 +139,7 @@ namespace engine {
 
     void Image::set_data(std::vector<std::byte> pixels) {
 
-        auto staging = Buffer(device, size, vk::BufferUsageFlagBits::eTransferSrc);
+        auto staging = Buffer(size, vk::BufferUsageFlagBits::eTransferSrc);
         staging.write(pixels.data());
 
         auto subres_range = vk::ImageSubresourceRange {
@@ -205,19 +206,11 @@ namespace engine {
 
     }
 
-    DepthImage::DepthImage (std::shared_ptr<Device> device, std::size_t width, std::size_t height) 
-        : device(device), width(width), height(height) {
+    DepthImage::DepthImage (std::size_t width, std::size_t height) 
+        : width(width), height(height) {
 
         create_handle();
         create_view();
-
-    }
-
-    DepthImage::~DepthImage ( ) {
-
-        device->get_handle().destroyImageView(view);
-        device->get_handle().destroyImage(handle);
-        device->get_handle().freeMemory(memory);
 
     }
 
@@ -226,7 +219,7 @@ namespace engine {
         auto create_info = vk::ImageCreateInfo {
             .flags = vk::ImageCreateFlags(),
             .imageType = vk::ImageType::e2D,
-            .format = find_supported_format(device),
+            .format = find_supported_format(),
             .extent = {to_u32(width), to_u32(height), 1},
             .mipLevels = 1,
             .arrayLayers = 1,
@@ -238,18 +231,18 @@ namespace engine {
         };
 
         try {
-            handle = device->get_handle().createImage(create_info);
+            handle = device->get_handle().createImageUnique(create_info);
 
-            auto requirements = device->get_handle().getImageMemoryRequirements(handle);
-            auto index = get_memory_index(device->get_gpu(), requirements, vk::MemoryPropertyFlagBits::eDeviceLocal);
+            auto requirements = device->get_handle().getImageMemoryRequirements(handle.get());
+            auto index = get_memory_index(requirements, vk::MemoryPropertyFlagBits::eDeviceLocal);
 
             auto allocate_info = vk::MemoryAllocateInfo {
                 .allocationSize = requirements.size,
                 .memoryTypeIndex = index
             };
 
-            memory = device->get_handle().allocateMemory(allocate_info);
-            device->get_handle().bindImageMemory(handle, memory, 0);
+            memory = device->get_handle().allocateMemoryUnique(allocate_info);
+            device->get_handle().bindImageMemory(handle.get(), memory.get(), 0);
             LOG_INFO("Successfully created Image");
         } catch (vk::SystemError error) {
             LOG_ERROR("Failed to create Image");
@@ -269,24 +262,24 @@ namespace engine {
 
         auto create_info = vk::ImageViewCreateInfo {
             .flags = vk::ImageViewCreateFlags(),
-            .image = handle,
+            .image = handle.get(),
             .viewType = vk::ImageViewType::e2D,
-            .format = find_supported_format(device),
+            .format = find_supported_format(),
             .components = vk::ComponentMapping(),
             .subresourceRange = subres_range
         };
 
-        view = device->get_handle().createImageView(create_info);
+        view = device->get_handle().createImageViewUnique(create_info);
 
     }
 
-    vk::Format DepthImage::find_supported_format (std::shared_ptr<Device> device) {
+    vk::Format DepthImage::find_supported_format () {
 
         auto candidates = { vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint };
 
         for (const auto& format : candidates) {
 
-            auto properties = device->get_gpu().getFormatProperties(format);
+            auto properties = Device::get()->get_gpu().getFormatProperties(format);
 
             if (properties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
                 return format;

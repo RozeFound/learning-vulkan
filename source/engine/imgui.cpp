@@ -6,8 +6,8 @@
 
 namespace engine {
 
-    ImGUI::ImGUI (std::shared_ptr<Device> device, std::size_t image_count, vk::RenderPass& renderpass)
-        : device(device), image_count(to_u32(image_count)), renderpass(renderpass) {
+    ImGUI::ImGUI ( std::size_t image_count, vk::RenderPass& renderpass)
+        : image_count(to_u32(image_count)), renderpass(renderpass) {
 
         make_descriptor_pool();
 

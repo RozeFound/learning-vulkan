@@ -10,7 +10,7 @@ namespace engine {
 
         std::size_t width, height, size;
 
-        std::shared_ptr<Device> device;
+        std::shared_ptr<Device> device = Device::get();
 
         vk::Image handle;
         vk::ImageView view;
@@ -25,17 +25,17 @@ namespace engine {
 
         public:
 
-        Image (std::shared_ptr<Device> device, std::string_view path);
-        Image (std::shared_ptr<Device> device, std::size_t width, std::size_t height, std::vector<std::byte> pixels);
+        Image (std::string_view path);
+        Image (std::size_t width, std::size_t height, std::vector<std::byte> pixels);
         ~Image ( );
 
         void set_data(std::vector<std::byte> pixels);
 
-        constexpr const vk::ImageView& get_view ( ) const { return view; };
-        constexpr const vk::Sampler& get_sampler ( ) const { return sampler; };
+        constexpr const vk::ImageView& get_view ( ) const { return view; }
+        constexpr const vk::Sampler& get_sampler ( ) const { return sampler; }
 
-        constexpr const std::size_t get_width ( ) const { return width; };
-        constexpr const std::size_t get_height ( ) const { return height; };
+        constexpr const std::size_t get_width ( ) const { return width; }
+        constexpr const std::size_t get_height ( ) const { return height; }
 
     };
 
@@ -43,22 +43,21 @@ namespace engine {
 
         std::size_t width, height;
 
-        std::shared_ptr<Device> device;
+        std::shared_ptr<Device> device = Device::get();
 
-        vk::Image handle;
-        vk::ImageView view;
-        vk::DeviceMemory memory;
+        vk::UniqueImage handle;
+        vk::UniqueImageView view;
+        vk::UniqueDeviceMemory memory;
 
         void create_handle ( );
         void create_view ( );
 
         public:
 
-        DepthImage (std::shared_ptr<Device> device, std::size_t width, std::size_t height);
-        ~DepthImage ( );
+        DepthImage (std::size_t width, std::size_t height);
 
-        static vk::Format find_supported_format (std::shared_ptr<Device> device);
-        constexpr const vk::ImageView& get_view ( ) const { return view; };
+        static vk::Format find_supported_format ();
+        constexpr const vk::ImageView& get_view ( ) const { return view.get(); }
 
     };
 

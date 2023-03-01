@@ -9,7 +9,9 @@
 
 namespace engine {
 
-    vk::Pipeline create_pipeline (std::shared_ptr<Device> device, vk::PipelineLayout& layout, vk::RenderPass& renderpass) {
+    vk::Pipeline create_pipeline (vk::PipelineLayout& layout, vk::RenderPass& renderpass) {
+
+        auto device = Device::get();
 
         auto binding_description = Vertex::get_binding_description();
         auto attribute_descriptions = Vertex::get_attribute_descriptions(); 
@@ -84,7 +86,7 @@ namespace engine {
             .pAttachments = &color_blend_attachment
         };
 
-        auto shader = Shader(device->get_handle(), "shaders/basic");
+        auto shader = Shader("shaders/basic");
         auto stages = shader.get_stage_info(); 
 
         auto create_info = vk::GraphicsPipelineCreateInfo {
@@ -120,9 +122,9 @@ namespace engine {
     
     }
 
-    vk::PipelineLayout create_pipeline_layout (std::shared_ptr<Device> device, const vk::DescriptorSetLayout& layout) {
+    vk::PipelineLayout create_pipeline_layout (const vk::DescriptorSetLayout& layout) {
 
-        auto push_constance_range = vk::PushConstantRange {
+        auto push_constant_range = vk::PushConstantRange {
             .stageFlags = vk::ShaderStageFlagBits::eVertex,
             .offset = 0,
             .size = sizeof(UniformBufferObject)
@@ -133,11 +135,11 @@ namespace engine {
             .setLayoutCount = 1,
             .pSetLayouts = &layout,
             .pushConstantRangeCount = 1,
-            .pPushConstantRanges = &push_constance_range
+            .pPushConstantRanges = &push_constant_range
         };
 
         try {
-            auto result = device->get_handle().createPipelineLayout(create_info);
+            auto result = Device::get()->get_handle().createPipelineLayout(create_info);
             LOG_INFO("Created PipeLine Layout");
             return result;
         } catch (vk::SystemError) {
@@ -147,7 +149,7 @@ namespace engine {
 
     }
 
-    vk::DescriptorSetLayout create_descriptor_set_layout (std::shared_ptr<Device> device) {
+    vk::DescriptorSetLayout create_descriptor_set_layout ( ) {
 
         auto bindings = std::array {
             vk::DescriptorSetLayoutBinding {
@@ -165,7 +167,7 @@ namespace engine {
         };
 
         try {
-            auto result = device->get_handle().createDescriptorSetLayout(descriptor_set_info);
+            auto result = Device::get()->get_handle().createDescriptorSetLayout(descriptor_set_info);
             LOG_INFO("Created DescriptorSet Pipeline layout");
             return result;
         } catch (vk::SystemError error) {
@@ -176,7 +178,9 @@ namespace engine {
     }
 
 
-    vk::RenderPass create_renderpass (std::shared_ptr<Device> device) {
+    vk::RenderPass create_renderpass ( ) {
+
+        auto device = Device::get();
 
         auto color_attachment = vk::AttachmentDescription {
             .flags = vk::AttachmentDescriptionFlags(),
@@ -197,7 +201,7 @@ namespace engine {
 
         auto depth_attachment = vk::AttachmentDescription {
             .flags = vk::AttachmentDescriptionFlags(),
-            .format = DepthImage::find_supported_format(device),
+            .format = DepthImage::find_supported_format(),
             .samples = vk::SampleCountFlagBits::e1,
             .loadOp = vk::AttachmentLoadOp::eClear,
             .storeOp = vk::AttachmentStoreOp::eDontCare,

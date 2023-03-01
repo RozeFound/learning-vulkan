@@ -7,6 +7,19 @@
 
 namespace engine {
 
+    static std::weak_ptr<Device> device_instance;
+
+    void Device::set_static_instance (std::shared_ptr<Device>& device) {
+
+        device_instance = device;
+
+    }
+
+    const std::shared_ptr<Device> Device::get ( ) { 
+        if (!device_instance.expired()) return device_instance.lock();
+        else throw std::runtime_error("Device Instance has been expired!");
+    }
+
     Device::Device (GLFWwindow* window) : window(window) {
 
         make_instance();

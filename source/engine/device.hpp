@@ -1,6 +1,7 @@
 #pragma once
 
 #include <limits>
+#include <memory>
 
 #include "essentials.hpp"
 #include "utils.hpp"
@@ -26,11 +27,14 @@ namespace engine {
         Device (GLFWwindow*);
         ~Device ( );
 
-        constexpr const vk::Device& get_handle ( ) const { return handle; };
-        constexpr const vk::PhysicalDevice& get_gpu ( ) const { return gpu; };
-        constexpr const vk::SurfaceKHR& get_surface ( ) const { return surface; };
-        constexpr const vk::Instance& get_instance ( ) const { return instance; };
-        constexpr const GLFWwindow* get_window ( ) const { return window; };
+        static void set_static_instance (std::shared_ptr<Device>&);
+        const static std::shared_ptr<Device> get ( );
+
+        constexpr const vk::Device& get_handle ( ) const { return handle; }
+        constexpr const vk::PhysicalDevice& get_gpu ( ) const { return gpu; }
+        constexpr const vk::SurfaceKHR& get_surface ( ) const { return surface; }
+        constexpr const vk::Instance& get_instance ( ) const { return instance; }
+        constexpr const GLFWwindow* get_window ( ) const { return window; }
 
         constexpr const vk::Extent2D get_extent ( ) const {
 

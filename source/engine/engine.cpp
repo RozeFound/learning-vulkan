@@ -31,6 +31,7 @@ namespace engine {
         }
 
         device = std::make_shared<Device>(window);
+        Device::set_static_instance(device);
 
         if constexpr (debug) {
             dldi = vk::DispatchLoaderDynamic(device->get_instance(), vkGetInstanceProcAddr);
@@ -41,7 +42,30 @@ namespace engine {
         graphics_queue = device->get_handle().getQueue(indices.graphics_family.value(), 0);
         present_queue = device->get_handle().getQueue(indices.present_family.value(), 0);
 
-        prepare();
+        renderpass = create_renderpass();
+        swapchain = std::make_unique<SwapChain>(renderpass);
+        max_frames_in_flight = swapchain->get_frames().size();
+
+        auto texture = std::make_shared<Image>("textures/image.jpg");
+        for (auto& frame : swapchain->get_frames()) frame.texture = texture; 
+
+        // Layouts
+        descriptor_set_layout = create_descriptor_set_layout();
+        pipeline_layout = create_pipeline_layout(descriptor_set_layout);
+
+        // Pools
+        make_command_pool();
+        make_descriptor_pool();
+
+        // Sets
+        swapchain->make_commandbuffers(command_pool);
+        swapchain->make_descriptor_sets(descriptor_pool, descriptor_set_layout);
+
+        pipeline = create_pipeline(pipeline_layout, renderpass);
+
+        if (is_imgui_enabled) imgui = std::make_unique<ImGUI>(max_frames_in_flight, renderpass);
+
+        asset = std::make_unique<Mesh>();
 
     }
 
@@ -63,38 +87,6 @@ namespace engine {
         device->get_handle().destroyPipelineLayout(pipeline_layout);
         device->get_handle().destroyDescriptorSetLayout(descriptor_set_layout);
         device->get_handle().destroyPipeline(pipeline);
-
-    }
-
-    void Engine::prepare ( ) {
-
-        make_command_pool();
-
-        renderpass = create_renderpass(device);
-
-        swapchain = std::make_unique<SwapChain>(device, renderpass);
-        max_frames_in_flight = swapchain->get_frames().size();
-
-        auto texture = std::make_shared<Image>(device, "textures/image.jpg");
-
-        for (auto& frame : swapchain->get_frames()) {
-            frame.texture = texture; // we don't need several copies of texture, since it statically loaded from file
-        }
-
-        make_descriptor_pool();
-        descriptor_set_layout = create_descriptor_set_layout(device);
-
-        swapchain->make_commandbuffers(command_pool);
-        swapchain->make_descriptor_sets(descriptor_pool, descriptor_set_layout);
-
-        pipeline_layout = create_pipeline_layout(device, descriptor_set_layout);
-        pipeline = create_pipeline(device, pipeline_layout, renderpass);
-
-        if (is_imgui_enabled) imgui = std::make_unique<ImGUI>(device, max_frames_in_flight, renderpass);
-
-        frame_number = 0;
-
-        asset = std::make_unique<Mesh>(device);
 
     }
 
@@ -196,7 +188,7 @@ namespace engine {
 
         auto renderpass_info = vk::RenderPassBeginInfo {
             .renderPass = renderpass,
-            .framebuffer = frame.buffer,
+            .framebuffer = frame.buffer.get(),
             .renderArea = {{0, 0}, swapchain->get_extent()},
             .clearValueCount = to_u32(clear_values.size()),
             .pClearValues = clear_values.data()
@@ -249,10 +241,10 @@ namespace engine {
         constexpr auto timeout = std::numeric_limits<uint64_t>::max();
         const auto& frame = swapchain->get_frames().at(frame_number);
 
-        auto wait_result = device->get_handle().waitForFences(frame.in_flight, VK_TRUE, timeout);
-        device->get_handle().resetFences(frame.in_flight);
+        auto wait_result = device->get_handle().waitForFences(frame.in_flight.get(), VK_TRUE, timeout);
+        device->get_handle().resetFences(frame.in_flight.get());
 
-        auto image_result = device->get_handle().acquireNextImageKHR(swapchain->get_handle(), timeout, frame.image_available);
+        auto image_result = device->get_handle().acquireNextImageKHR(swapchain->get_handle(), timeout, frame.image_available.get());
 
         frame.commands.reset();
 
@@ -262,23 +254,23 @@ namespace engine {
 
         auto submit_info = vk::SubmitInfo {
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &frame.image_available,
+            .pWaitSemaphores = &frame.image_available.get(),
             .pWaitDstStageMask = wait_stages,
             .commandBufferCount = 1,
             .pCommandBuffers = &frame.commands,
             .signalSemaphoreCount = 1,
-            .pSignalSemaphores = &frame.render_finished
+            .pSignalSemaphores = &frame.render_finished.get()
         };
 
         try {
-            graphics_queue.submit(submit_info, frame.in_flight);
+            graphics_queue.submit(submit_info, frame.in_flight.get());
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to submit draw command buffer")
         }
 
         auto present_info = vk::PresentInfoKHR {
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &frame.render_finished,
+            .pWaitSemaphores = &frame.render_finished.get(),
             .swapchainCount = 1,
             .pSwapchains = &swapchain->get_handle(),
             .pImageIndices = &image_result.value

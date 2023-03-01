@@ -6,9 +6,9 @@
 
 namespace engine {
 
-    uint32_t get_memory_index (const vk::PhysicalDevice& physical_device, vk::MemoryRequirements requirements, vk::MemoryPropertyFlags flags) {
+    uint32_t get_memory_index (vk::MemoryRequirements requirements, vk::MemoryPropertyFlags flags) {
 
-        auto properties = physical_device.getMemoryProperties();
+        auto properties = Device::get()->get_gpu().getMemoryProperties();
 
         for (uint32_t i = 0; i < properties.memoryTypeCount; i++) {
 
@@ -23,8 +23,8 @@ namespace engine {
 
     }
 
-    Buffer::Buffer (std::shared_ptr<Device> device, std::size_t size, vk::BufferUsageFlags usage, bool device_local) 
-        : device(device), size(size), device_local(device_local) {
+    Buffer::Buffer (std::size_t size, vk::BufferUsageFlags usage, bool device_local) 
+        : size(size), device_local(device_local) {
 
         auto flags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
 
@@ -41,17 +41,18 @@ namespace engine {
         };
 
         try {
-            handle = device->get_handle().createBuffer(create_info);
-            auto requirements = device->get_handle().getBufferMemoryRequirements(handle);
-            auto index = get_memory_index(device->get_gpu(), requirements, flags);
+            
+            handle = device->get_handle().createBufferUnique(create_info);
+
+            auto requirements = device->get_handle().getBufferMemoryRequirements(handle.get());
 
             auto allocate_info = vk::MemoryAllocateInfo {
                 .allocationSize = requirements.size,
-                .memoryTypeIndex = index
+                .memoryTypeIndex = get_memory_index(requirements, flags)
             };
 
-            memory = device->get_handle().allocateMemory(allocate_info);
-            device->get_handle().bindBufferMemory(handle, memory, 0);  
+            memory = device->get_handle().allocateMemoryUnique(allocate_info);
+            device->get_handle().bindBufferMemory(handle.get(), memory.get(), 0);  
         } catch (vk::SystemError) {
             LOG_ERROR("Failed to create buffer");
         }
@@ -61,14 +62,13 @@ namespace engine {
     Buffer::~Buffer ( ) {
 
         if (!device_local && persistent_memory) 
-            device->get_handle().unmapMemory(memory);
-
-        device->get_handle().destroyBuffer(handle);
-        device->get_handle().freeMemory(memory);
+            device->get_handle().unmapMemory(memory.get());
 
     }
 
-    void copy_buffer (std::shared_ptr<Device> device, const vk::Buffer& source, vk::Buffer& destination, std::size_t size) {
+    void copy_buffer (const vk::Buffer& source, vk::Buffer& destination, std::size_t size) {
+
+        auto device = Device::get();
 
         auto indices = get_queue_family_indices(device->get_gpu(), device->get_surface());
         auto transient_buffer = TransientBuffer(device->get_handle(), indices);

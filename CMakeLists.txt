@@ -41,6 +41,7 @@ CPMAddPackage(
           "GLFW_BUILD_EXAMPLES OFF"
           "GLFW_BULID_DOCS OFF"
           "GLFW_BUILD_WAYLAND ON"
+          "GLFW_BUILD_X11 OFF"
 )
 CPMAddPackage("gh:g-truc/glm#0.9.9.8")
 

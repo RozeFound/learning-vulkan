@@ -1,4 +1,5 @@
 #include "utils.hpp"
+#include <stdexcept>
 #include "logging.hpp"
 
 namespace engine {
@@ -80,32 +81,30 @@ namespace engine {
 
     }
 
-    vk::Semaphore make_semaphore (const vk::Device& device) {
+    vk::UniqueSemaphore make_semaphore (const vk::Device& device) {
 
         auto create_info = vk::SemaphoreCreateInfo {
             .flags = vk::SemaphoreCreateFlags()
         };
 
         try {
-            return device.createSemaphore(create_info);
+            return device.createSemaphoreUnique(create_info);
         } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to create Semaphore");
-            return nullptr;
+            throw std::runtime_error("Failed to create Semaphore");
         }
 
     }
 
-    vk::Fence make_fence (const vk::Device& device) {
+    vk::UniqueFence make_fence (const vk::Device& device) {
 
         auto create_info = vk::FenceCreateInfo {
             .flags = vk::FenceCreateFlagBits::eSignaled
         };
 
         try {
-            return device.createFence(create_info);
+            return device.createFenceUnique(create_info);
         } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to create Fence");
-            return nullptr;
+            throw std::runtime_error("Failed to create Fence");
         }
 
     }

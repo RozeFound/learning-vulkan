@@ -13,7 +13,7 @@ namespace engine {
 
     class Engine {
 
-        uint32_t max_frames_in_flight, frame_number;
+        uint32_t max_frames_in_flight, frame_number = 0;
         const bool is_imgui_enabled = true;
 
         vk::DebugUtilsMessengerEXT debug_messenger;
@@ -37,13 +37,11 @@ namespace engine {
         vk::DescriptorPool descriptor_pool;
         vk::DescriptorSetLayout descriptor_set_layout;
 
-        void prepare ( );
-        void prepare_frame (uint32_t index);
-
-
+        void remake_swapchain ( );
         void make_command_pool ( );
         void make_descriptor_pool ( );
         
+        void prepare_frame (uint32_t index);
         void record_draw_commands (uint32_t index);
 
     public:
@@ -55,7 +53,6 @@ namespace engine {
         ~Engine ( );
 
         void draw ();
-        void remake_swapchain ( );
 
     };
 
