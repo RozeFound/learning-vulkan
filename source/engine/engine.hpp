@@ -2,7 +2,7 @@
 
 #include <functional>
 
-#include "essentials.hpp"
+#include <vulkan/vulkan.hpp>
 
 #include "mesh.hpp"
 #include "device.hpp"
@@ -14,7 +14,7 @@ namespace engine {
     class Engine {
 
         uint32_t max_frames_in_flight, frame_number = 0;
-        const bool is_imgui_enabled = true;
+        const bool is_imgui_enabled = false;
 
         vk::DebugUtilsMessengerEXT debug_messenger;
         vk::DispatchLoaderDynamic dldi;
@@ -28,7 +28,6 @@ namespace engine {
 
         vk::Pipeline pipeline;
         vk::PipelineLayout pipeline_layout;
-        vk::RenderPass renderpass;
 
         vk::Queue graphics_queue;
         vk::Queue present_queue;

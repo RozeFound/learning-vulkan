@@ -84,4 +84,32 @@ namespace engine {
 
     }
 
+    void insert_image_memory_barrier (const vk::CommandBuffer& command_buffer, const vk::Image& image,
+        vk::ImageAspectFlags aspect_flags, const std::array<vk::PipelineStageFlags, 2> stages, 
+        const std::array<vk::AccessFlags, 2> access_masks, const std::array<vk::ImageLayout, 2> layouts) {
+
+        auto subres_range = vk::ImageSubresourceRange {
+            .aspectMask = aspect_flags,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        };
+
+        auto barrier = vk::ImageMemoryBarrier {
+            .srcAccessMask = access_masks.at(0),
+            .dstAccessMask = access_masks.at(1),
+            .oldLayout = layouts.at(0),
+            .newLayout = layouts.at(1),
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .image = image,
+            .subresourceRange = subres_range
+        };
+
+        command_buffer.pipelineBarrier(stages.at(0), stages.at(1),
+            vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrier);
+
+    }
+
 }

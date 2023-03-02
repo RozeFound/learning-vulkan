@@ -65,6 +65,9 @@ file(GLOB_RECURSE sources CONFIGURE_DEPENDS
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
 add_executable(${PROJECT_NAME} ${sources})
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE "VULKAN_HPP_NO_CONSTRUCTORS")
+target_precompile_headers(${PROJECT_NAME} PRIVATE <vulkan/vulkan.hpp> <glm/glm.hpp> <GLFW/glfw3.h>)
+
 target_compile_definitions(${PROJECT_NAME} PUBLIC "$<$<CONFIG:DEBUG>:DEBUG>")
 target_compile_definitions(${PROJECT_NAME} PUBLIC "$<$<CONFIG:RELWITHDEBINFO>:DEBUG>")
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "Learning-Vulkan")
@@ -78,3 +81,4 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/textures DESTINATION ${PROJECT_BINARY_DIR}
 # Link dependencies
 target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt)
 target_link_libraries(${PROJECT_NAME} PRIVATE vulkan glfw glm)
+

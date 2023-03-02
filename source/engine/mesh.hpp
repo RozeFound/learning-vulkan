@@ -2,7 +2,6 @@
 
 #include <vector>
 
-#include "essentials.hpp"
 #include "memory.hpp"
 #include "device.hpp"
 #include "shaders.hpp"

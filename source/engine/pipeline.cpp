@@ -9,7 +9,7 @@
 
 namespace engine {
 
-    vk::Pipeline create_pipeline (vk::PipelineLayout& layout, vk::RenderPass& renderpass) {
+    vk::Pipeline create_pipeline (vk::PipelineLayout& layout) {
 
         auto device = Device::get();
 
@@ -86,10 +86,20 @@ namespace engine {
             .pAttachments = &color_blend_attachment
         };
 
+        auto color_attachment_format = device->get_format().format;
+        auto depth_attachment_format = DepthImage::find_supported_format();
+
+        auto rendering_info = vk::PipelineRenderingCreateInfoKHR {
+            .colorAttachmentCount = 1,
+            .pColorAttachmentFormats = &color_attachment_format,
+            .depthAttachmentFormat = depth_attachment_format
+        };
+
         auto shader = Shader("shaders/basic");
         auto stages = shader.get_stage_info(); 
 
         auto create_info = vk::GraphicsPipelineCreateInfo {
+            .pNext = &rendering_info,
             .flags = vk::PipelineCreateFlags(),
             .stageCount = to_u32(stages.size()),
             .pStages = stages.data(),
@@ -103,7 +113,7 @@ namespace engine {
             .pColorBlendState = &color_blend_info,
             .pDynamicState = &dynamic_state_info,
             .layout = layout,
-            .renderPass = renderpass,
+            .renderPass = nullptr,
             .subpass = 0,
             .basePipelineHandle = nullptr,
             .basePipelineIndex = -1
@@ -172,83 +182,6 @@ namespace engine {
             return result;
         } catch (vk::SystemError error) {
             LOG_ERROR("Failed to create DescriptorSet Pipeline layout");
-            return nullptr;
-        }
-
-    }
-
-
-    vk::RenderPass create_renderpass ( ) {
-
-        auto device = Device::get();
-
-        auto color_attachment = vk::AttachmentDescription {
-            .flags = vk::AttachmentDescriptionFlags(),
-            .format = device->get_format().format,
-            .samples = vk::SampleCountFlagBits::e1,
-            .loadOp = vk::AttachmentLoadOp::eClear,
-            .storeOp = vk::AttachmentStoreOp::eStore,
-            .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
-            .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
-            .initialLayout = vk::ImageLayout::eUndefined,
-            .finalLayout = vk::ImageLayout::ePresentSrcKHR
-        };
-
-        auto color_attachment_reference = vk::AttachmentReference {
-            .attachment = 0,
-            .layout = vk::ImageLayout::eColorAttachmentOptimal
-        };
-
-        auto depth_attachment = vk::AttachmentDescription {
-            .flags = vk::AttachmentDescriptionFlags(),
-            .format = DepthImage::find_supported_format(),
-            .samples = vk::SampleCountFlagBits::e1,
-            .loadOp = vk::AttachmentLoadOp::eClear,
-            .storeOp = vk::AttachmentStoreOp::eDontCare,
-            .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
-            .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
-            .initialLayout = vk::ImageLayout::eUndefined,
-            .finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal
-        };
-
-        auto depth_attachment_reference = vk::AttachmentReference {
-            .attachment = 1,
-            .layout = vk::ImageLayout::eDepthStencilAttachmentOptimal
-        };
-
-        auto subpass = vk::SubpassDescription {
-            .flags = vk::SubpassDescriptionFlags(),
-            .pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
-            .colorAttachmentCount = 1,
-            .pColorAttachments = &color_attachment_reference,
-            .pDepthStencilAttachment = &depth_attachment_reference
-        };
-
-        auto subpass_dependency = vk::SubpassDependency {
-            .srcSubpass = VK_SUBPASS_EXTERNAL,
-            .srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
-            .dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eLateFragmentTests,
-            .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite
-        };
-
-        auto attachments = std::array { color_attachment, depth_attachment };
-
-        auto create_info = vk::RenderPassCreateInfo {
-            .flags = vk::RenderPassCreateFlags(),
-            .attachmentCount = to_u32(attachments.size()),
-            .pAttachments = attachments.data(),
-            .subpassCount = 1,
-            .pSubpasses = &subpass,
-            .dependencyCount = 1,
-            .pDependencies = &subpass_dependency
-        };
-
-        try {
-            auto result = device->get_handle().createRenderPass(create_info);
-            LOG_INFO("Created PipeLine renderpass");
-            return result;
-        } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to create PipeLine renderpass");
             return nullptr;
         }
 

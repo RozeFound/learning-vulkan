@@ -1,7 +1,7 @@
 #pragma once
 
 #include <fmt/core.h>
-#include "essentials.hpp"
+#include <vulkan/vulkan.hpp>
 
 namespace engine {
 

@@ -86,6 +86,7 @@ namespace engine {
 
 			frames.at(i).image = images.at(i);
 			frames.at(i).view = device->get_handle().createImageViewUnique(create_info);
+            frames.at(i).depth_buffer = std::make_unique<DepthImage>(extent.width, extent.height);
 
 		};
 
@@ -97,39 +98,8 @@ namespace engine {
             frame.in_flight = make_fence(device->get_handle());
         }
 
-        make_framebuffers();
-
     }
 
-    void SwapChain::make_framebuffers ( ) {
-
-        depth_buffer = std::make_unique<DepthImage>(extent.width, extent.height);
-
-        for (auto& frame : frames) {
-
-            auto attachments = std::array { frame.view.get(), depth_buffer->get_view() };
-
-            auto create_info = vk::FramebufferCreateInfo {
-                .flags = vk::FramebufferCreateFlags(),
-                .renderPass = renderpass,
-                .attachmentCount = to_u32(attachments.size()),
-                .pAttachments = attachments.data(),
-                .width = extent.width,
-                .height = extent.height,
-                .layers = 1
-            };
-
-            try {
-                frame.buffer = device->get_handle().createFramebufferUnique(create_info);
-            } catch (vk::SystemError err) {
-                LOG_ERROR("Failed to create Framebuffer");
-            }
-
-        }
-
-        LOG_INFO("Created buffers for frames");
-
-    }
 
     void SwapChain::make_commandbuffers (vk::CommandPool& command_pool) {
         

@@ -57,6 +57,8 @@ namespace engine {
         DepthImage (std::size_t width, std::size_t height);
 
         static vk::Format find_supported_format ();
+
+        constexpr const vk::Image& get_handle ( ) const { return handle.get(); }
         constexpr const vk::ImageView& get_view ( ) const { return view.get(); }
 
     };

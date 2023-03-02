@@ -3,10 +3,10 @@
 #include <functional>
 #include <vector>
 
+#include <vulkan/vulkan.hpp>
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_vulkan.h>
 
-#include "essentials.hpp"
 #include "device.hpp"
 #include "pipeline.hpp"
 #include "swapchain.hpp"

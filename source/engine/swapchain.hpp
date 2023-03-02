@@ -3,7 +3,7 @@
 #include <memory>
 #include <vector>
 
-#include "essentials.hpp"
+#include <vulkan/vulkan.hpp>
 
 #include "device.hpp"
 #include "image.hpp"
@@ -18,7 +18,7 @@ namespace engine {
             vk::Image image;
             vk::UniqueImageView view;
 
-            vk::UniqueFramebuffer buffer;
+            std::unique_ptr<DepthImage> depth_buffer;
 
             vk::CommandBuffer commands;
             vk::DescriptorSet descriptor_set;
@@ -41,12 +41,10 @@ namespace engine {
         std::shared_ptr<Device> device = Device::get();
 
         void make_frames ( );
-        void make_framebuffers ( );
 
         public:
 
-        SwapChain (const vk::RenderPass& renderpass)
-            : renderpass(renderpass) { create_handle(); }
+        SwapChain () { create_handle(); }
 
         void create_handle ( );
 

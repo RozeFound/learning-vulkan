@@ -67,6 +67,8 @@ namespace engine {
 
         }
 
+        extensions.push_back("VK_KHR_get_physical_device_properties2");
+
         auto app_info = vk::ApplicationInfo {
             .apiVersion = VK_VERSION_1_3
         };
@@ -117,7 +119,6 @@ namespace engine {
 
     void Device::create_handle ( ) {
 
-
         auto indices = get_queue_family_indices(gpu, surface);
 
         auto queue_info = std::vector<vk::DeviceQueueCreateInfo>();
@@ -140,15 +141,32 @@ namespace engine {
 
         }
 
+        auto synchronization = vk::PhysicalDeviceSynchronization2FeaturesKHR();
+        synchronization.synchronization2 = VK_TRUE;
+
+        auto dynamic_rendering = vk::PhysicalDeviceDynamicRenderingFeatures();
+        dynamic_rendering.dynamicRendering = VK_TRUE;
+        
+        dynamic_rendering.pNext = &synchronization;
+
         auto device_features = vk::PhysicalDeviceFeatures();
         device_features.samplerAnisotropy = VK_TRUE;
 
-        auto extensions = std::vector {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+        auto extensions = std::vector { "VK_KHR_swapchain" };
         auto layers = std::vector<const char*>();
+
+        extensions.push_back("VK_KHR_dynamic_rendering");
+        extensions.push_back("VK_KHR_depth_stencil_resolve");
+        extensions.push_back("VK_KHR_create_renderpass2");
+        extensions.push_back("VK_KHR_multiview");
+        extensions.push_back("VK_KHR_maintenance2");
+
+        extensions.push_back("VK_KHR_synchronization2");
 
         if constexpr (debug) layers.push_back("VK_LAYER_KHRONOS_validation");
 
         auto device_info = vk::DeviceCreateInfo {
+            .pNext = &dynamic_rendering,
             .flags = vk::DeviceCreateFlags(),
             .queueCreateInfoCount = to_u32(queue_info.size()),
             .pQueueCreateInfos = queue_info.data(),

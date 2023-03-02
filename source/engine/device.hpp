@@ -3,7 +3,8 @@
 #include <limits>
 #include <memory>
 
-#include "essentials.hpp"
+#include <vulkan/vulkan.hpp>
+
 #include "utils.hpp"
 
 namespace engine {

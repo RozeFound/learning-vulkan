@@ -142,31 +142,15 @@ namespace engine {
         auto staging = Buffer(size, vk::BufferUsageFlagBits::eTransferSrc);
         staging.write(pixels.data());
 
-        auto subres_range = vk::ImageSubresourceRange {
-            .aspectMask = vk::ImageAspectFlagBits::eColor,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1
-        };
-
-        auto copy_barrier = vk::ImageMemoryBarrier {
-            .dstAccessMask = vk::AccessFlagBits::eTransferWrite,
-            .oldLayout = vk::ImageLayout::eUndefined,
-            .newLayout = vk::ImageLayout::eTransferDstOptimal,
-            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .image = handle,
-            .subresourceRange = subres_range
-        };
-
         auto indices = get_queue_family_indices(device->get_gpu(), device->get_surface());
         auto transient_buffer = TransientBuffer(device->get_handle(), indices);
         auto command_buffer = transient_buffer.get();
 
-        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eHost, 
-            vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(),
-                0, nullptr, 0, nullptr, 1, &copy_barrier);
+        insert_image_memory_barrier(command_buffer, handle, vk::ImageAspectFlagBits::eColor, 
+            { vk::PipelineStageFlagBits::eHost, vk::PipelineStageFlagBits::eTransfer },
+            { vk::AccessFlagBits::eNone, vk::AccessFlagBits::eTransferWrite },
+            { vk::ImageLayout::eUndefined,  vk::ImageLayout::eTransferDstOptimal }
+        );
 
         auto subres_layers = vk::ImageSubresourceLayers {
             .aspectMask = vk::ImageAspectFlagBits::eColor,
@@ -187,20 +171,11 @@ namespace engine {
         command_buffer.copyBufferToImage(staging.get_handle(), handle,
             vk::ImageLayout::eTransferDstOptimal, 1, &region);
 
-        auto use_barrier = vk::ImageMemoryBarrier {
-            .srcAccessMask = vk::AccessFlagBits::eTransferWrite,
-            .dstAccessMask = vk::AccessFlagBits::eShaderRead,
-            .oldLayout = vk::ImageLayout::eTransferDstOptimal,
-            .newLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
-            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .image = handle,
-            .subresourceRange = subres_range
-        };
-
-        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, 
-            vk::PipelineStageFlagBits::eFragmentShader, vk::DependencyFlags(),
-                0, nullptr, 0, nullptr, 1, &use_barrier);
+        insert_image_memory_barrier(command_buffer, handle, vk::ImageAspectFlagBits::eColor, 
+            { vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader },
+            { vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead },
+            { vk::ImageLayout::eTransferDstOptimal,  vk::ImageLayout::eShaderReadOnlyOptimal }
+        );
 
         transient_buffer.submit();
 

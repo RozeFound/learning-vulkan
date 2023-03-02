@@ -1,13 +1,20 @@
 #pragma once
 
-#include "essentials.hpp"
-#include "device.hpp"
 #include <memory>
+
+#include <vulkan/vulkan.hpp>
+
+#include "device.hpp"
 
 namespace engine {
 
     void copy_buffer (const vk::Buffer& source, vk::Buffer& destination, std::size_t size);
     uint32_t get_memory_index (vk::MemoryRequirements, vk::MemoryPropertyFlags);
+
+    void insert_image_memory_barrier (const vk::CommandBuffer& command_buffer, const vk::Image& image,
+        vk::ImageAspectFlags aspect_flags, const std::array<vk::PipelineStageFlags, 2> stages, 
+        const std::array<vk::AccessFlags, 2> access_masks, const std::array<vk::ImageLayout, 2> layouts) ;
+
 
     class Buffer {
 

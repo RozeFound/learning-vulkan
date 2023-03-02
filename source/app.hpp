@@ -27,7 +27,7 @@ class App {
     public:
 
     App (std::size_t width, std::size_t height, std::string_view title);
-    ~App () { delete graphics_engine; glfwTerminate(); };
+    ~App () { delete graphics_engine; glfwTerminate(); }
 
     void run();
 

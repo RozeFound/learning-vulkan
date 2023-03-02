@@ -4,7 +4,8 @@
 #include <vector>
 #include <filesystem>
 
-#include "essentials.hpp"
+#include <vulkan/vulkan.hpp>
+#include <glm/glm.hpp>
 
 namespace engine {
 

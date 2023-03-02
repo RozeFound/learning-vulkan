@@ -33,17 +33,14 @@ namespace engine {
         device = std::make_shared<Device>(window);
         Device::set_static_instance(device);
 
-        if constexpr (debug) {
-            dldi = vk::DispatchLoaderDynamic(device->get_instance(), vkGetInstanceProcAddr);
-            debug_messenger = make_debug_messenger(device->get_instance(), dldi);
-        }
+        dldi = vk::DispatchLoaderDynamic(device->get_instance(), vkGetInstanceProcAddr);
+        if constexpr (debug) debug_messenger = make_debug_messenger(device->get_instance(), dldi);
 
         auto indices = get_queue_family_indices(device->get_gpu(), device->get_surface());
         graphics_queue = device->get_handle().getQueue(indices.graphics_family.value(), 0);
         present_queue = device->get_handle().getQueue(indices.present_family.value(), 0);
 
-        renderpass = create_renderpass();
-        swapchain = std::make_unique<SwapChain>(renderpass);
+        swapchain = std::make_unique<SwapChain>();
         max_frames_in_flight = swapchain->get_frames().size();
 
         auto texture = std::make_shared<Image>("textures/image.jpg");
@@ -61,9 +58,9 @@ namespace engine {
         swapchain->make_commandbuffers(command_pool);
         swapchain->make_descriptor_sets(descriptor_pool, descriptor_set_layout);
 
-        pipeline = create_pipeline(pipeline_layout, renderpass);
+        pipeline = create_pipeline(pipeline_layout);
 
-        if (is_imgui_enabled) imgui = std::make_unique<ImGUI>(max_frames_in_flight, renderpass);
+        // if (is_imgui_enabled) imgui = std::make_unique<ImGUI>(max_frames_in_flight);
 
         asset = std::make_unique<Mesh>();
 
@@ -83,7 +80,6 @@ namespace engine {
         device->get_handle().destroyDescriptorPool(descriptor_pool);
 
         LOG_INFO("Destroying Pipeline");
-        device->get_handle().destroyRenderPass(renderpass);
         device->get_handle().destroyPipelineLayout(pipeline_layout);
         device->get_handle().destroyDescriptorSetLayout(descriptor_set_layout);
         device->get_handle().destroyPipeline(pipeline);
@@ -181,20 +177,48 @@ namespace engine {
             LOG_ERROR("Failed to begin command record");
         }
 
-        auto clear_values = std::array {
-            vk::ClearValue { std::array { 1.f, 1.f, 1.f, 1.f } },
-            vk::ClearValue { .depthStencil = { 1.f, 0 } }
+        insert_image_memory_barrier(frame.commands, frame.image, vk::ImageAspectFlagBits::eColor, 
+            { vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eColorAttachmentOutput },
+            { vk::AccessFlagBits::eNone, vk::AccessFlagBits::eColorAttachmentWrite },
+            { vk::ImageLayout::eUndefined,  vk::ImageLayout::eColorAttachmentOptimal }
+        );
+
+        insert_image_memory_barrier(frame.commands, frame.depth_buffer->get_handle(), vk::ImageAspectFlagBits::eDepth, 
+            { vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
+                vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eLateFragmentTests },
+            { vk::AccessFlagBits::eNone, vk::AccessFlagBits::eDepthStencilAttachmentWrite },
+            { vk::ImageLayout::eUndefined,  vk::ImageLayout::eDepthStencilAttachmentOptimal }
+        );
+
+        auto color_attachment_info = vk::RenderingAttachmentInfoKHR {
+            .imageView = frame.view.get(),
+            .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
+            .resolveMode = vk::ResolveModeFlagBits::eNone,
+            .loadOp = vk::AttachmentLoadOp::eClear,
+            .storeOp = vk::AttachmentStoreOp::eStore,
+            .clearValue = vk::ClearValue { std::array { 1.f, 1.f, 1.f, 1.f } }
         };
 
-        auto renderpass_info = vk::RenderPassBeginInfo {
-            .renderPass = renderpass,
-            .framebuffer = frame.buffer.get(),
-            .renderArea = {{0, 0}, swapchain->get_extent()},
-            .clearValueCount = to_u32(clear_values.size()),
-            .pClearValues = clear_values.data()
+        auto depth_attachment_info = vk::RenderingAttachmentInfoKHR {
+            .imageView = frame.depth_buffer->get_view(),
+            .imageLayout = vk::ImageLayout::eDepthAttachmentOptimal,
+            .resolveMode = vk::ResolveModeFlagBits::eNone,
+            .loadOp = vk::AttachmentLoadOp::eClear,
+            .storeOp = vk::AttachmentStoreOp::eDontCare,
+            .clearValue = vk::ClearValue { .depthStencil = { 1.f, 0 } }
         };
 
-        command_buffer.beginRenderPass(renderpass_info, vk::SubpassContents::eInline);
+        auto rendering_info = vk::RenderingInfo {
+            .flags = vk::RenderingFlags(),
+            .renderArea = vk::Rect2D { .extent = swapchain->get_extent() },
+            .layerCount = 1,
+            .colorAttachmentCount = 1,
+            .pColorAttachments = &color_attachment_info,
+            .pDepthAttachment = &depth_attachment_info
+        };
+
+        frame.commands.beginRenderingKHR(rendering_info, dldi);
+
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, 1, &frame.descriptor_set, 0, nullptr);
 
@@ -224,7 +248,14 @@ namespace engine {
 
 
         if (is_imgui_enabled) imgui->draw(command_buffer, on_render);
-        command_buffer.endRenderPass();
+
+        frame.commands.endRenderingKHR(dldi);
+
+        insert_image_memory_barrier(frame.commands, frame.image, vk::ImageAspectFlagBits::eColor, 
+            { vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eBottomOfPipe },
+            { vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eNone },
+            { vk::ImageLayout::eColorAttachmentOptimal,  vk::ImageLayout::ePresentSrcKHR }
+        );
 
         try {
             command_buffer.end();
