@@ -1,5 +1,4 @@
 #include "mesh.hpp"
-#include <memory>
 #include "memory.hpp"
 
 namespace engine {

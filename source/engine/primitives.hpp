@@ -1,0 +1,103 @@
+#pragma once
+
+#include <array>
+
+#include <imgui/imgui.h>
+
+namespace engine {
+
+    struct Vertex {
+
+        glm::vec3 position;
+        glm::vec3 color;
+        glm::vec2 texture_coordinates;
+
+        static auto get_binding_description ( ) {
+
+            auto description = vk::VertexInputBindingDescription {
+                .binding = 0,
+                .stride = sizeof(Vertex),
+                .inputRate = vk::VertexInputRate::eVertex
+            };
+
+            return description;
+
+        }
+
+        static auto get_attribute_descriptions ( ) {
+
+            auto descriptions = std::array {
+                vk::VertexInputAttributeDescription {
+                    .location = 0,
+                    .binding = 0,
+                    .format = vk::Format::eR32G32B32Sfloat,
+                    .offset = offsetof(Vertex, position)
+                },
+                vk::VertexInputAttributeDescription {
+                    .location = 1,
+                    .binding = 0,
+                    .format = vk::Format::eR32G32B32Sfloat,
+                    .offset = offsetof(Vertex, color)
+                },
+                vk::VertexInputAttributeDescription {
+                    .location = 2,
+                    .binding = 0,
+                    .format = vk::Format::eR32G32Sfloat,
+                    .offset = offsetof(Vertex, texture_coordinates)
+                }
+            };
+
+            return descriptions;
+
+        }
+    };
+
+    struct ImVertex : ImDrawVert {
+
+        static auto get_binding_description ( ) {
+
+            auto description = vk::VertexInputBindingDescription {
+                .binding = 0,
+                .stride = sizeof(ImVertex),
+                .inputRate = vk::VertexInputRate::eVertex
+            };
+
+            return description;
+
+        }
+
+        static auto get_attribute_descriptions ( ) {
+
+            auto descriptions = std::array {
+                vk::VertexInputAttributeDescription {
+                    .location = 0,
+                    .binding = 0,
+                    .format = vk::Format::eR32G32Sfloat,
+                    .offset = offsetof(ImVertex, pos)
+                },
+                vk::VertexInputAttributeDescription {
+                    .location = 1,
+                    .binding = 0,
+                    .format = vk::Format::eR32G32Sfloat,
+                    .offset = offsetof(ImVertex, uv)
+                },
+                vk::VertexInputAttributeDescription {
+                    .location = 2,
+                    .binding = 0,
+                    .format = vk::Format::eR8G8B8A8Unorm,
+                    .offset = offsetof(ImVertex, col)
+                }
+            };
+
+            return descriptions;
+
+        }
+    };
+
+    struct UniformBufferObject {
+        glm::mat4x4 model;
+        glm::mat4x4 view;
+        glm::mat4x4 projection;
+    };
+
+}

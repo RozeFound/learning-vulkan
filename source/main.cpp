@@ -13,4 +13,5 @@ auto main (const int argc, const char* const* argv) -> int {
     app->run();
 
     return 0;
+    
 }

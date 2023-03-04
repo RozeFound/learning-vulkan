@@ -1,6 +1,7 @@
 #include <stdexcept>
 #include <vector>
 
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -8,6 +9,7 @@
 #include "memory.hpp"
 #include "utils.hpp"
 #include "logging.hpp"
+#include "pipeline.hpp"
 
 namespace engine {
     
@@ -25,6 +27,7 @@ namespace engine {
         create_handle();
         create_view();
         create_sampler();
+        create_descriptor_set();
 
         set_data(std::vector<std::byte>(pixels, pixels + size));
 
@@ -35,9 +38,12 @@ namespace engine {
     Image::Image (std::size_t width, std::size_t height, std::vector<std::byte> pixels)
         : width(width), height(height) { 
 
+        size = pixels.size();
+
         create_handle();
         create_view();
         create_sampler();
+        create_descriptor_set();
 
         set_data(pixels);
     };
@@ -127,13 +133,70 @@ namespace engine {
             .maxAnisotropy = properties.limits.maxSamplerAnisotropy,
             .compareEnable = VK_FALSE,
             .compareOp = vk::CompareOp::eAlways,
-            .minLod = 0.f,
+            .minLod = -0.f,
             .maxLod = 0.f,
             .borderColor = vk::BorderColor::eFloatOpaqueBlack,
             .unnormalizedCoordinates = VK_FALSE
         };
 
         sampler = device->get_handle().createSampler(create_info);
+
+    }
+
+    void Image::create_descriptor_set ( ) {
+
+        auto pool_size = vk::DescriptorPoolSize {
+            .type = vk::DescriptorType::eCombinedImageSampler,
+            .descriptorCount = 1
+        };
+
+        auto create_info = vk::DescriptorPoolCreateInfo {
+            .flags = vk::DescriptorPoolCreateFlags(),
+            .maxSets = 1,
+            .poolSizeCount = 1,
+            .pPoolSizes = &pool_size
+        };
+
+        try {
+            descriptor_pool = device->get_handle().createDescriptorPoolUnique(create_info);
+            LOG_INFO("Successfully created Descriptor Pool");
+        } catch (vk::SystemError err) {
+            LOG_ERROR("Failed to create Descriptor Pool");
+        }
+
+        auto layout = create_descriptor_set_layout();
+
+        auto allocate_info = vk::DescriptorSetAllocateInfo {
+            .descriptorPool = descriptor_pool.get(),
+            .descriptorSetCount = 1,
+            .pSetLayouts = &layout
+        };
+
+        try {
+            auto result = device->get_handle().allocateDescriptorSets(allocate_info);
+            LOG_INFO("Allocated DescriptorSet's");
+            descriptor_set = result.at(0);
+        } catch (vk::SystemError err) {
+            LOG_ERROR("Failed to allocate DescriptorSet's");
+        }
+
+        auto image_info = vk::DescriptorImageInfo {
+            .sampler = sampler,
+            .imageView = view,
+            .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
+        };
+
+        auto write_info = vk::WriteDescriptorSet {
+            .dstSet = descriptor_set,
+            .dstBinding = 0,
+            .dstArrayElement = 0,
+            .descriptorCount = 1,
+            .descriptorType = vk::DescriptorType::eCombinedImageSampler,
+            .pImageInfo = &image_info
+        };
+
+        device->get_handle().updateDescriptorSets(1, &write_info, 0, nullptr);
+        device->get_handle().destroyDescriptorSetLayout(layout);
 
     }
 

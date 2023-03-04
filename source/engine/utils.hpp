@@ -2,8 +2,6 @@
 
 #include <optional>
 
-#include <vulkan/vulkan.hpp>
-
 namespace engine {
 
     struct QueueFamilyIndices {

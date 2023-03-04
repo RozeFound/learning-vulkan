@@ -66,7 +66,7 @@ namespace engine {
 
     }
 
-    void copy_buffer (const vk::Buffer& source, vk::Buffer& destination, std::size_t size) {
+    void copy_buffer (const vk::Buffer& source, const vk::Buffer& destination, std::size_t size) {
 
         auto device = Device::get();
 
@@ -86,7 +86,7 @@ namespace engine {
 
     void insert_image_memory_barrier (const vk::CommandBuffer& command_buffer, const vk::Image& image,
         vk::ImageAspectFlags aspect_flags, const std::array<vk::PipelineStageFlags, 2> stages, 
-        const std::array<vk::AccessFlags, 2> access_masks, const std::array<vk::ImageLayout, 2> layouts) {
+        const std::array<vk::AccessFlags, 2> access_flags, const std::array<vk::ImageLayout, 2> layouts) {
 
         auto subres_range = vk::ImageSubresourceRange {
             .aspectMask = aspect_flags,
@@ -97,8 +97,8 @@ namespace engine {
         };
 
         auto barrier = vk::ImageMemoryBarrier {
-            .srcAccessMask = access_masks.at(0),
-            .dstAccessMask = access_masks.at(1),
+            .srcAccessMask = access_flags.at(0),
+            .dstAccessMask = access_flags.at(1),
             .oldLayout = layouts.at(0),
             .newLayout = layouts.at(1),
             .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,

@@ -120,48 +120,4 @@ namespace engine {
 
     }
 
-    void SwapChain::make_descriptor_sets (vk::DescriptorPool& descriptor_pool, const vk::DescriptorSetLayout& layout) {
-
-        auto layouts = std::vector(frames.size(), layout);
-
-        auto allocate_info = vk::DescriptorSetAllocateInfo {
-            .descriptorPool = descriptor_pool,
-            .descriptorSetCount = to_u32(frames.size()),
-            .pSetLayouts = layouts.data()
-        };
-
-        try {
-            auto descriptor_sets = device->get_handle().allocateDescriptorSets(allocate_info);
-            for (std::size_t i = 0; i < frames.size(); i++)
-                frames.at(i).descriptor_set = descriptor_sets.at(i);
-            LOG_INFO("Allocated DescriptorSet's");
-        } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to allocate DescriptorSet's");
-        }
-
-        for (auto& frame : frames) {
-
-            auto write_info = std::array<vk::WriteDescriptorSet, 1>();
-
-            auto image_info = vk::DescriptorImageInfo {
-                .sampler = frame.texture->get_sampler(),
-                .imageView = frame.texture->get_view(),
-                .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
-            };
-
-            write_info.at(0) = vk::WriteDescriptorSet {
-                .dstSet = frame.descriptor_set,
-                .dstBinding = 0,
-                .dstArrayElement = 0,
-                .descriptorCount = 1,
-                .descriptorType = vk::DescriptorType::eCombinedImageSampler,
-                .pImageInfo = &image_info
-            };
-
-            device->get_handle().updateDescriptorSets(to_u32(write_info.size()), write_info.data(), 0, nullptr);
-
-        }
-
-    }
-
 }

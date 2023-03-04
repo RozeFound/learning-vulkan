@@ -14,14 +14,19 @@ namespace engine {
 
         vk::Image handle;
         vk::ImageView view;
+
         vk::DeviceMemory memory;
         vk::Sampler sampler;
+
+        vk::UniqueDescriptorPool descriptor_pool;
+        vk::DescriptorSet descriptor_set;
 
         vk::Format format = vk::Format::eR8G8B8A8Srgb;
 
         void create_handle ( );
         void create_view ( );
         void create_sampler ( );
+        void create_descriptor_set ( );
 
         public:
 
@@ -33,6 +38,8 @@ namespace engine {
 
         constexpr const vk::ImageView& get_view ( ) const { return view; }
         constexpr const vk::Sampler& get_sampler ( ) const { return sampler; }
+
+        constexpr const vk::DescriptorSet& get_descriptor_set ( ) const { return descriptor_set; }
 
         constexpr const std::size_t get_width ( ) const { return width; }
         constexpr const std::size_t get_height ( ) const { return height; }

@@ -2,18 +2,16 @@
 
 #include <memory>
 
-#include <vulkan/vulkan.hpp>
-
 #include "device.hpp"
 
 namespace engine {
 
-    void copy_buffer (const vk::Buffer& source, vk::Buffer& destination, std::size_t size);
+    void copy_buffer (const vk::Buffer& source, const vk::Buffer& destination, std::size_t size);
     uint32_t get_memory_index (vk::MemoryRequirements, vk::MemoryPropertyFlags);
 
     void insert_image_memory_barrier (const vk::CommandBuffer& command_buffer, const vk::Image& image,
         vk::ImageAspectFlags aspect_flags, const std::array<vk::PipelineStageFlags, 2> stages, 
-        const std::array<vk::AccessFlags, 2> access_masks, const std::array<vk::ImageLayout, 2> layouts) ;
+        const std::array<vk::AccessFlags, 2> access_flags, const std::array<vk::ImageLayout, 2> layouts);
 
 
     class Buffer {
@@ -34,7 +32,7 @@ namespace engine {
         Buffer (std::size_t size, vk::BufferUsageFlags usage, bool device_local = false);
         ~Buffer ( );
 
-        void write (auto data, std::size_t size = 0, bool persistent = false) {
+        void write (auto data, std::size_t size = 0, std::ptrdiff_t offset = 0, bool persistent = false) {
 
             if (!size) size = get_size();
 
@@ -49,18 +47,23 @@ namespace engine {
             } else {
 
                 if (!data_location) data_location = device->get_handle().mapMemory(memory.get(), 0, size);
-                std::memcpy(data_location, data, size);
+
+                auto location = static_cast<std::byte*>(data_location) + offset;
+
+                std::memcpy(location, data, size);
 
                 if (!persistent) {
                     device->get_handle().unmapMemory(memory.get());
-                    data_location = nullptr;
+                    data_location = nullptr; persistent_memory = false;
                 } else persistent_memory = true;
 
             }
 
         };
 
+        constexpr const vk::Buffer& operator* ( ) const { return get_handle(); }
         constexpr const vk::Buffer& get_handle ( ) const { return handle.get(); }
+        constexpr const vk::DeviceMemory& get_memory ( ) const { return memory.get(); }
         constexpr const std::size_t get_size ( ) const { return size; }
 
     };

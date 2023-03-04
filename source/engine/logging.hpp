@@ -1,7 +1,6 @@
 #pragma once
 
 #include <fmt/core.h>
-#include <vulkan/vulkan.hpp>
 
 namespace engine {
 

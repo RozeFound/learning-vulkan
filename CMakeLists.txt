@@ -34,8 +34,8 @@ CPMAddPackage("gh:khronosgroup/vulkan-hpp@1.3.240")
 CPMAddPackage(
         NAME GLFW
         VERSION 3.3.9
-        GITHUB_REPOSITORY RozeFound/glfw
-        GIT_TAG 35776caf6d73c4fa2c1e31a96bbd521656fb5270
+        GITHUB_REPOSITORY glfw/glfw
+        GIT_TAG 064fa9c6a50422f2d7b450afed1d5eea2b8054db
         OPTIONS
           "GLFW_BUILD_TESTS OFF"
           "GLFW_BUILD_EXAMPLES OFF"
@@ -64,13 +64,15 @@ file(GLOB_RECURSE sources CONFIGURE_DEPENDS
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
 add_executable(${PROJECT_NAME} ${sources})
+set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "Learning-Vulkan")
 
+# Enable precompiled headers
 target_compile_definitions(${PROJECT_NAME} PRIVATE "VULKAN_HPP_NO_CONSTRUCTORS")
 target_precompile_headers(${PROJECT_NAME} PRIVATE <vulkan/vulkan.hpp> <glm/glm.hpp> <GLFW/glfw3.h>)
 
+# Enable debug info
 target_compile_definitions(${PROJECT_NAME} PUBLIC "$<$<CONFIG:DEBUG>:DEBUG>")
 target_compile_definitions(${PROJECT_NAME} PUBLIC "$<$<CONFIG:RELWITHDEBINFO>:DEBUG>")
-set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "Learning-Vulkan")
 
 # Enable shader comilation
 include(cmake/shaders.cmake)

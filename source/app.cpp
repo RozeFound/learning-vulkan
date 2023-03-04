@@ -11,7 +11,7 @@ App::App (std::size_t width, std::size_t height, std::string_view title) {
 
     window = create_window(width, height, title);
     graphics_engine = new engine::Engine(window);
-    graphics_engine->on_render = on_render;
+    graphics_engine->on_ui_update = on_ui_update;
 
 }
 
@@ -44,7 +44,7 @@ GLFWwindow* App::create_window (std::size_t width, std::size_t height, std::stri
 
 }
 
-void App::on_render ( ) {
+void App::on_ui_update ( ) {
 
     ImGuiIO& io = ImGui::GetIO();
 
@@ -58,7 +58,8 @@ void App::on_render ( ) {
     ImGui::Text("Frametime %.3f/ms", 1000.0f / io.Framerate);
     ImGui::Text("FPS %.1f/s, min %.1f/s, max %.1f/s", io.Framerate, min_fps, max_fps);
     ImGui::End();
-    
+
+    ImGui::ShowDemoWindow();
 
 }
 

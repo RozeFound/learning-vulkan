@@ -10,7 +10,7 @@
 #include "logging.hpp"
 #include "pipeline.hpp"
 #include "utils.hpp"
-#include "shaders.hpp"
+#include "primitives.hpp"
 
 namespace engine {
 
@@ -43,24 +43,27 @@ namespace engine {
         swapchain = std::make_unique<SwapChain>();
         max_frames_in_flight = swapchain->get_frames().size();
 
-        auto texture = std::make_shared<Image>("textures/image.jpg");
-        for (auto& frame : swapchain->get_frames()) frame.texture = texture; 
+        texture = std::make_unique<Image>("textures/image.jpg");
 
         // Layouts
         descriptor_set_layout = create_descriptor_set_layout();
-        pipeline_layout = create_pipeline_layout(descriptor_set_layout);
 
-        // Pools
+        auto push_constant_range = vk::PushConstantRange {
+            .stageFlags = vk::ShaderStageFlagBits::eVertex,
+            .offset = 0,
+            .size = sizeof(UniformBufferObject)
+        };
+
+        pipeline_layout = create_pipeline_layout(&descriptor_set_layout, &push_constant_range);
+
         make_command_pool();
-        make_descriptor_pool();
-
-        // Sets
         swapchain->make_commandbuffers(command_pool);
-        swapchain->make_descriptor_sets(descriptor_pool, descriptor_set_layout);
+
+        
 
         pipeline = create_pipeline(pipeline_layout);
 
-        // if (is_imgui_enabled) imgui = std::make_unique<ImGUI>(max_frames_in_flight);
+        if (is_imgui_enabled) ui = std::make_unique<UI>(max_frames_in_flight);
 
         asset = std::make_unique<Mesh>();
 
@@ -76,8 +79,6 @@ namespace engine {
 
         LOG_INFO("Destroying Command Pool");
         device->get_handle().destroyCommandPool(command_pool);
-        LOG_INFO("Destroying Descriptor Pool");
-        device->get_handle().destroyDescriptorPool(descriptor_pool);
 
         LOG_INFO("Destroying Pipeline");
         device->get_handle().destroyPipelineLayout(pipeline_layout);
@@ -115,31 +116,6 @@ namespace engine {
             LOG_INFO("Successfully created Command Pool");
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to create Command Pool");
-        }
-
-    }
-
-    void Engine::make_descriptor_pool ( ) {
-
-        auto pool_sizes = std::array {
-            vk::DescriptorPoolSize {
-                .type = vk::DescriptorType::eCombinedImageSampler,
-                .descriptorCount = max_frames_in_flight
-            }
-        };
-
-        auto create_info = vk::DescriptorPoolCreateInfo {
-            .flags = vk::DescriptorPoolCreateFlags(),
-            .maxSets = max_frames_in_flight,
-            .poolSizeCount = to_u32(pool_sizes.size()),
-            .pPoolSizes = pool_sizes.data()
-        };
-
-        try {
-            descriptor_pool = device->get_handle().createDescriptorPool(create_info);
-            LOG_INFO("Successfully created Descriptor Pool");
-        } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to create Descriptor Pool");
         }
 
     }
@@ -220,9 +196,9 @@ namespace engine {
         frame.commands.beginRenderingKHR(rendering_info, dldi);
 
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
-        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, 1, &frame.descriptor_set, 0, nullptr);
+        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, 1, &texture->get_descriptor_set(), 0, nullptr);
 
-        auto offsets = std::array<vk::DeviceSize, 1> {}; 
+        auto offsets = std::array<vk::DeviceSize, 1> { }; 
         command_buffer.bindVertexBuffers(0, 1, &asset->vertex_buffer->get_handle(), offsets.data());
         command_buffer.bindIndexBuffer(asset->index_buffer->get_handle(), 0, vk::IndexType::eUint16);
 
@@ -247,7 +223,13 @@ namespace engine {
         command_buffer.drawIndexed(index_count, instance_count, 0, 0, 0);
 
 
-        if (is_imgui_enabled) imgui->draw(command_buffer, on_render);
+        if (is_imgui_enabled && on_ui_update) {
+            UI::new_frame(); on_ui_update();
+            ui->draw(command_buffer, index);
+            UI::end_frame();
+        }
+
+        
 
         frame.commands.endRenderingKHR(dldi);
 

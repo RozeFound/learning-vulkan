@@ -3,8 +3,6 @@
 #include <memory>
 #include <vector>
 
-#include <vulkan/vulkan.hpp>
-
 #include "device.hpp"
 #include "image.hpp"
 #include "memory.hpp"
@@ -17,13 +15,9 @@ namespace engine {
 
             vk::Image image;
             vk::UniqueImageView view;
+            vk::CommandBuffer commands;
 
             std::unique_ptr<DepthImage> depth_buffer;
-
-            vk::CommandBuffer commands;
-            vk::DescriptorSet descriptor_set;
-
-            std::shared_ptr<Image> texture;
 
             vk::UniqueSemaphore image_available;
             vk::UniqueSemaphore render_finished;
@@ -49,7 +43,6 @@ namespace engine {
         void create_handle ( );
 
         void make_commandbuffers (vk::CommandPool&);
-        void make_descriptor_sets (vk::DescriptorPool&, const vk::DescriptorSetLayout&);
 
         constexpr const vk::SwapchainKHR& get_handle ( ) const { return handle.get(); }
         constexpr std::vector<Frame>& get_frames ( ) { return frames; }

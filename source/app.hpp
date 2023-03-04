@@ -22,7 +22,7 @@ class App {
     GLFWwindow* create_window (std::size_t width, std::size_t height, std::string_view title);
 
     void calculate_framerate ( );
-    static void on_render ( );
+    static void on_ui_update ( );
 
     public:
 
