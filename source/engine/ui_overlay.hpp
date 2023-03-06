@@ -4,9 +4,9 @@
 
 #include <imgui/imgui_impl_glfw.h>
 
-#include "device.hpp"
-#include "pipeline.hpp"
-#include "swapchain.hpp"
+#include "core/device.hpp"
+#include "core/memory.hpp"
+#include "core/image.hpp"
 
 namespace engine {
 

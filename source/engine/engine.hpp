@@ -1,12 +1,13 @@
 #pragma once
 
 #include <functional>
-
 #include <memory>
 
-#include "mesh.hpp"
-#include "device.hpp"
-#include "swapchain.hpp"
+#include "core/device.hpp"
+#include "core/swapchain.hpp"
+
+#include "utils/mesh.hpp"
+
 #include "ui_overlay.hpp"
 
 namespace engine {

@@ -3,7 +3,8 @@
 #include <imgui/imgui.h>
 
 #include "app.hpp"
-#include "engine/logging.hpp"
+
+#include "engine/utils/logging.hpp"
 
 App::App (std::size_t width, std::size_t height, std::string_view title) {
 

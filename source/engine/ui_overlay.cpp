@@ -1,13 +1,13 @@
 #include <imgui/roboto_regular.h>
-
 #include <imgui/imgui.h>
 
-#include "memory.hpp"
-#include "pipeline.hpp"
 #include "ui_overlay.hpp"
-#include "utils.hpp"
-#include "logging.hpp"
-#include "primitives.hpp"
+
+#include "core/pipeline.hpp"
+
+#include "utils/utils.hpp"
+#include "utils/logging.hpp"
+#include "utils/primitives.hpp"
 
 namespace engine {
 

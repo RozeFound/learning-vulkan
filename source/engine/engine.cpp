@@ -4,13 +4,14 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "device.hpp"
 #include "engine.hpp"
-#include "image.hpp"
-#include "logging.hpp"
-#include "pipeline.hpp"
-#include "utils.hpp"
-#include "primitives.hpp"
+
+#include "core/image.hpp"
+#include "core/pipeline.hpp"
+
+#include "utils/utils.hpp"
+#include "utils/logging.hpp"
+#include "utils/primitives.hpp"
 
 namespace engine {
 
@@ -146,9 +147,8 @@ namespace engine {
         auto& frame = swapchain->get_frames().at(index);
         auto& command_buffer = frame.commands;
 
-        auto begin_info = vk::CommandBufferBeginInfo();
         try {
-            command_buffer.begin(begin_info);
+            command_buffer.begin(vk::CommandBufferBeginInfo());
         } catch (vk::SystemError err) {
             LOG_ERROR("Failed to begin command record");
         }
@@ -222,14 +222,11 @@ namespace engine {
         auto instance_count = 1;
         command_buffer.drawIndexed(index_count, instance_count, 0, 0, 0);
 
-
         if (is_imgui_enabled && on_ui_update) {
             UI::new_frame(); on_ui_update();
             ui->draw(command_buffer, index);
             UI::end_frame();
         }
-
-        
 
         frame.commands.endRenderingKHR(dldi);
 
