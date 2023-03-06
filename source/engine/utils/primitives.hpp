@@ -2,6 +2,9 @@
 
 #include <array>
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
+
 #include <imgui/imgui.h>
 
 namespace engine {
@@ -11,6 +14,16 @@ namespace engine {
         glm::vec3 position;
         glm::vec3 color;
         glm::vec2 texture_coordinates;
+
+        auto operator== (const Vertex& other) const {
+
+            auto pos_eq = position == other.position;
+            auto col_eq = color == other.color;
+            auto tex_eq = texture_coordinates == other.texture_coordinates;
+
+            return pos_eq && col_eq && tex_eq;
+            
+        }
 
         static auto get_binding_description ( ) {
 
@@ -101,3 +114,15 @@ namespace engine {
     };
 
 }
+
+template<> struct std::hash<engine::Vertex> {
+    std::size_t operator() (const engine::Vertex& vertex) const noexcept {
+
+        auto hash_position = std::hash<glm::vec3>{}(vertex.position);
+        auto hash_color = std::hash<glm::vec2>{}(vertex.color);
+        auto hash_coords = std::hash<glm::vec2>{}(vertex.texture_coordinates);
+
+        return ((hash_position ^ hash_color << 1) >> 1) ^ (hash_coords << 1);
+
+    };
+};

@@ -44,8 +44,6 @@ namespace engine {
         swapchain = std::make_unique<SwapChain>();
         max_frames_in_flight = swapchain->get_frames().size();
 
-        texture = std::make_unique<Image>("textures/image.jpg");
-
         // Layouts
         descriptor_set_layout = create_descriptor_set_layout();
 
@@ -59,14 +57,12 @@ namespace engine {
 
         make_command_pool();
         swapchain->make_commandbuffers(command_pool);
-
-        
-
         pipeline = create_pipeline(pipeline_layout);
 
         if (is_imgui_enabled) ui = std::make_unique<UI>(max_frames_in_flight);
 
-        asset = std::make_unique<Mesh>();
+        texture = std::make_unique<Image>("textures/viking_room.png");
+        model = std::make_unique<Model>("models/viking_room.obj");
 
     }
 
@@ -198,10 +194,6 @@ namespace engine {
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, 1, &texture->get_descriptor_set(), 0, nullptr);
 
-        auto offsets = std::array<vk::DeviceSize, 1> { }; 
-        command_buffer.bindVertexBuffers(0, 1, &asset->vertex_buffer->get_handle(), offsets.data());
-        command_buffer.bindIndexBuffer(asset->index_buffer->get_handle(), 0, vk::IndexType::eUint16);
-
         auto viewport = vk::Viewport {
             .width = static_cast<float>(swapchain->get_extent().width),
             .height = static_cast<float>(swapchain->get_extent().height),       
@@ -218,9 +210,12 @@ namespace engine {
         command_buffer.setScissor(0, 1, &scissor);
 
         prepare_frame(index);
-        auto index_count = to_u32(asset->indices.size());
-        auto instance_count = 1;
-        command_buffer.drawIndexed(index_count, instance_count, 0, 0, 0);
+
+        auto offsets = std::array<vk::DeviceSize, 1> { }; 
+        command_buffer.bindVertexBuffers(0, 1, &model->get_vertex(), offsets.data());
+        command_buffer.bindIndexBuffer(model->get_index(), 0, vk::IndexType::eUint16);
+
+        command_buffer.drawIndexed(model->get_indices_count(), 1, 0, 0, 0);
 
         if (is_imgui_enabled && on_ui_update) {
             UI::new_frame(); on_ui_update();

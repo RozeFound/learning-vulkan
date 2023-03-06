@@ -5,8 +5,7 @@
 
 #include "core/device.hpp"
 #include "core/swapchain.hpp"
-
-#include "utils/mesh.hpp"
+#include "core/model.hpp"
 
 #include "ui_overlay.hpp"
 
@@ -23,7 +22,8 @@ namespace engine {
         std::shared_ptr<Device> device;
 
         std::unique_ptr<UI> ui;
-        std::unique_ptr<Mesh> asset;
+
+        std::unique_ptr<Model> model;
         std::unique_ptr<Image> texture;
 
         std::unique_ptr<SwapChain> swapchain;

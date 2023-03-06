@@ -60,8 +60,6 @@ void App::on_ui_update ( ) {
     ImGui::Text("FPS %.1f/s, min %.1f/s, max %.1f/s", io.Framerate, min_fps, max_fps);
     ImGui::End();
 
-    ImGui::ShowDemoWindow();
-
 }
 
 void App::run ( ) {
