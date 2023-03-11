@@ -45,24 +45,27 @@ CPMAddPackage(
 )
 CPMAddPackage("gh:g-truc/glm#0.9.9.8")
 
+# ---- Add bundled libraries ----
+
+file(GLOB_RECURSE lib_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
+file(GLOB_RECURSE lib_sources "${CMAKE_CURRENT_SOURCE_DIR}/include/*.cpp")
+
+add_library("bundled" ${lib_headers} ${lib_sources})
+target_link_libraries("bundled" PRIVATE glfw)
+
+target_include_directories(
+  "bundled" PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+)
+
 # ---- Add source files ----
 
 # Note: globbing sources is considered bad practice as CMake's generators may not detect new files
 # automatically. Keep that in mind when changing files, or explicitly mention them here.
-file(GLOB_RECURSE sources CONFIGURE_DEPENDS
-  "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.cpp"
-)
 
-# ---- Enable libc++ ---- 
-
-# if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-#     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-# endif()
+file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp")
 
 # ---- Create executable ----
 
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
 add_executable(${PROJECT_NAME} ${sources})
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "Learning-Vulkan")
 
@@ -82,6 +85,7 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/textures DESTINATION ${PROJECT_BINARY_DIR}
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/models DESTINATION ${PROJECT_BINARY_DIR})
 
 # Link dependencies
+target_link_libraries(${PROJECT_NAME} PRIVATE bundled)
 target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt)
 target_link_libraries(${PROJECT_NAME} PRIVATE vulkan glfw glm)
 
