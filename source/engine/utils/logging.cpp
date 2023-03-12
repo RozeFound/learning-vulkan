@@ -46,9 +46,7 @@ namespace engine {
         using enum vk::DebugUtilsMessageTypeFlagBitsEXT;
         using enum vk::DebugUtilsMessageSeverityFlagBitsEXT;
 
-        if(type_flags == ePerformance) {
-            log(pCallbackData->pMessage, log_level::verbose);
-        }
+        log(pCallbackData->pMessage, log_level::verbose);
 
         return VK_FALSE;
     }

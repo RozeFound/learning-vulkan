@@ -5,7 +5,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
 
-#include <imgui/imgui.h>
+#include <imgui.h>
 
 namespace engine {
 

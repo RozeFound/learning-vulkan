@@ -1,6 +1,6 @@
 #include <memory>
 
-#include <imgui/imgui.h>
+#include <imgui.h>
 
 #include "app.hpp"
 
