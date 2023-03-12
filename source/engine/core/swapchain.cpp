@@ -24,7 +24,6 @@ namespace engine {
             if (mode == vk::PresentModeKHR::eMailbox)
                 { present_mode = mode; break; }
 
-
         auto create_info = vk::SwapchainCreateInfoKHR {
             .flags = vk::SwapchainCreateFlagsKHR(),
             .surface = device->get_surface(), 
@@ -53,9 +52,9 @@ namespace engine {
 
         try {
             handle = device->get_handle().createSwapchainKHRUnique(create_info);
-            LOG_INFO("Successfully created SwapChain");
+            logi("Successfully created SwapChain");
         } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to create SwapChain");
+            loge("Failed to create SwapChain");
         }
 
         make_frames();
@@ -69,30 +68,13 @@ namespace engine {
 
         for (size_t i = 0; i < images.size(); i++) {
 
-            auto subres_range = vk::ImageSubresourceRange {
-                .aspectMask = vk::ImageAspectFlagBits::eColor,
-                .baseMipLevel = 0,
-                .levelCount = 1,
-                .baseArrayLayer = 0,
-                .layerCount = 1
-            };
-
-			auto create_info = vk::ImageViewCreateInfo {
-                .flags = vk::ImageViewCreateFlags(),
-                .image = images.at(i),
-                .viewType = vk::ImageViewType::e2D,
-                .format = device->get_format().format,
-                .components = vk::ComponentMapping(),
-                .subresourceRange = subres_range
-            };
-
 			frames.at(i).image = images.at(i);
-			frames.at(i).view = device->get_handle().createImageViewUnique(create_info);
+			frames.at(i).view = create_view(images.at(i), device->get_format().format, vk::ImageAspectFlagBits::eColor);
             frames.at(i).depth_buffer = std::make_unique<DepthImage>(extent.width, extent.height);
 
 		};
 
-        LOG_INFO("Created ImageView's for SwapChain");
+        logi("Created ImageView's for SwapChain");
 
         for (auto& frame : frames) {          
             frame.image_available = make_semaphore(device->get_handle());
@@ -114,9 +96,9 @@ namespace engine {
             auto buffers = device->get_handle().allocateCommandBuffers(allocate_info);
             for (std::size_t i = 0; i < frames.size(); i++)
                 frames.at(i).commands = buffers.at(i);
-            LOG_INFO("Allocated Command Buffers");
+            logi("Allocated Command Buffers");
         } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to allocate Command Buffers");
+            loge("Failed to allocate Command Buffers");
         }
 
     }

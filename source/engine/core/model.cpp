@@ -14,13 +14,10 @@ namespace engine {
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
         std::vector<tinyobj::material_t> materials;
-        std::string warn, error;
+        std::string error;
 
-        auto result = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &error, path.data());
-
-        if (!warn.empty()) LOG_WARNING("{}", warn);
-
-        if (!result) LOG_ERROR("{}", error);
+        auto result = tinyobj::LoadObj(&attrib, &shapes, &materials, nullptr, &error, path.data());
+        if (!result) log(error, log_level::error);
 
         auto unique_vertices = std::unordered_map<Vertex, index_type>();
 
@@ -48,10 +45,10 @@ namespace engine {
 
         }
 
-        vertex_buffer = std::make_unique<Buffer>(vertices.size() * sizeof(Vertex), vk::BufferUsageFlagBits::eVertexBuffer, true);
+        vertex_buffer = std::make_unique<Buffer>(vertices.size() * sizeof(Vertex), vk::BufferUsageFlagBits::eVertexBuffer, false, true);
         vertex_buffer->write(vertices.data());
 
-        index_buffer = std::make_unique<Buffer>(indices.size() * sizeof(index_type), vk::BufferUsageFlagBits::eIndexBuffer, true);
+        index_buffer = std::make_unique<Buffer>(indices.size() * sizeof(index_type), vk::BufferUsageFlagBits::eIndexBuffer, false, true);
         index_buffer->write(indices.data());
 
     }

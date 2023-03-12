@@ -46,7 +46,7 @@ namespace engine {
 
         constexpr const vk::SwapchainKHR& get_handle ( ) const { return handle.get(); }
         constexpr std::vector<Frame>& get_frames ( ) { return frames; }
-        constexpr const vk::Extent2D& get_extent( ) const { return extent; }
+        constexpr const vk::Extent2D& get_extent ( ) const { return extent; }
 
     };
 

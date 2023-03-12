@@ -13,11 +13,11 @@ namespace engine {
 
         UI::~UI ( ) {
 
-        LOG_INFO("Destroying ImGUI");
+        logi("Destroying ImGUI");
 		ImGui_ImplGlfw_Shutdown();
 		ImGui::DestroyContext();
 
-        LOG_INFO("Destroying UI Pipeline");
+        logi("Destroying UI Pipeline");
         device->get_handle().destroyPipelineLayout(pipeline_layout);
         device->get_handle().destroyDescriptorSetLayout(descriptor_set_layout);
         device->get_handle().destroyPipeline(pipeline);
@@ -83,9 +83,9 @@ namespace engine {
         auto& index_buffer = index_buffers.at(index);
 
         if (!vertex_buffer || (vertex_buffer && vertex_buffer->get_size() < vertex_buffer_size)) 
-            vertex_buffer = std::make_unique<Buffer>(vertex_buffer_size, vk::BufferUsageFlagBits::eVertexBuffer);
+            vertex_buffer = std::make_unique<Buffer>(vertex_buffer_size, vk::BufferUsageFlagBits::eVertexBuffer, true);
         if (!index_buffer || (index_buffer && index_buffer->get_size() < index_buffer_size)) 
-            index_buffer = std::make_unique<Buffer>(index_buffer_size, vk::BufferUsageFlagBits::eIndexBuffer);
+            index_buffer = std::make_unique<Buffer>(index_buffer_size, vk::BufferUsageFlagBits::eIndexBuffer, true);
 
         auto command_lists = std::vector(draw_data->CmdLists, draw_data->CmdLists + draw_data->CmdListsCount);
 
@@ -93,8 +93,8 @@ namespace engine {
 
         for (const auto& command_list : command_lists) {
 
-            vertex_buffer->write(command_list->VtxBuffer.Data, command_list->VtxBuffer.Size * sizeof(ImVertex), vertex_offset, true);
-            index_buffer->write(command_list->IdxBuffer.Data, command_list->IdxBuffer.Size * sizeof(uint16_t), index_offset, true);
+            vertex_buffer->write(command_list->VtxBuffer.Data, command_list->VtxBuffer.Size * sizeof(ImVertex), vertex_offset);
+            index_buffer->write(command_list->IdxBuffer.Data, command_list->IdxBuffer.Size * sizeof(uint16_t), index_offset);
             
             vertex_offset += command_list->VtxBuffer.Size * sizeof(ImVertex); 
             index_offset += command_list->IdxBuffer.Size * sizeof(uint16_t);

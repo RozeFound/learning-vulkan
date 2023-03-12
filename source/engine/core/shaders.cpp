@@ -12,7 +12,7 @@ namespace engine {
 
     Shader::Shader (std::filesystem::path path) {
 
-        LOG_INFO("Creating Shader...");
+        logi("Creating Shader...");
 
         auto vertex_path = path.string() + ".vert.spv";
         auto fragment_path = path.string() + ".frag.spv";
@@ -45,7 +45,7 @@ namespace engine {
 
         try {
             auto result = Device::get()->get_handle().createShaderModuleUnique(create_info);
-            LOG_INFO("Successfully created shader module");
+            logi("Successfully created shader module");
             return result;
         } catch (vk::SystemError err) {
             throw std::runtime_error("Failed to create shader module");
@@ -63,7 +63,7 @@ namespace engine {
 
         auto file = std::ifstream(path, std::ios::ate | std::ios::binary);
 
-        if (!file.is_open()) LOG_ERROR("Failed to load data from {}", path.string());
+        if (!file.is_open()) loge("Failed to load data from {}", path.string());
 
         std::size_t size = file.tellg(); file.seekg(0);
         auto buffer = std::vector<std::byte>(size);

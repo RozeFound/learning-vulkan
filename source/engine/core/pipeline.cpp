@@ -119,10 +119,10 @@ namespace engine {
 
         try {
             auto result = device->get_handle().createGraphicsPipeline(nullptr, create_info);
-            LOG_INFO("Successfully created Graphics PipeLine");
+            logi("Successfully created Graphics PipeLine");
             return result.value;
         } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to create Graphics Pipeline");
+            loge("Failed to create Graphics Pipeline");
             return nullptr;
         }
     
@@ -241,10 +241,10 @@ namespace engine {
 
         try {
             auto result = device->get_handle().createGraphicsPipeline(nullptr, create_info);
-            LOG_INFO("Successfully created Graphics PipeLine");
+            logi("Successfully created Graphics PipeLine");
             return result.value;
         } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to create Graphics Pipeline");
+            loge("Failed to create Graphics Pipeline");
             return nullptr;
         }
     
@@ -268,10 +268,10 @@ namespace engine {
 
         try {
             auto result = Device::get()->get_handle().createPipelineLayout(create_info);
-            LOG_INFO("Created PipeLine Layout");
+            logi("Created PipeLine Layout");
             return result;
         } catch (vk::SystemError) {
-            LOG_ERROR("Failed to create PipeLine Layout");
+            loge("Failed to create PipeLine Layout");
             return nullptr;
         }
 
@@ -296,10 +296,10 @@ namespace engine {
 
         try {
             auto result = Device::get()->get_handle().createDescriptorSetLayout(descriptor_set_info);
-            LOG_INFO("Created DescriptorSet Pipeline layout");
+            logi("Created DescriptorSet Pipeline layout");
             return result;
         } catch (vk::SystemError error) {
-            LOG_ERROR("Failed to create DescriptorSet Pipeline layout");
+            loge("Failed to create DescriptorSet Pipeline layout");
             return nullptr;
         }
 

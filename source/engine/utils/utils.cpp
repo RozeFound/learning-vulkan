@@ -1,7 +1,6 @@
 #include <stdexcept>
 
 #include "utils.hpp"
-#include "logging.hpp"
 
 namespace engine {
 

@@ -3,6 +3,8 @@
 #include <limits>
 #include <memory>
 
+#include <vk_mem_alloc.h>
+
 #include "../utils/utils.hpp"
 
 namespace engine {
@@ -14,6 +16,8 @@ namespace engine {
         vk::SurfaceKHR surface;
         vk::Instance instance;
         GLFWwindow* window;
+
+        VmaAllocator allocator;
 
         void create_handle ( );
         void choose_physical_device ( );
@@ -34,6 +38,7 @@ namespace engine {
         constexpr const vk::SurfaceKHR& get_surface ( ) const { return surface; }
         constexpr const vk::Instance& get_instance ( ) const { return instance; }
         constexpr const GLFWwindow* get_window ( ) const { return window; }
+        constexpr const VmaAllocator& get_allocator ( ) const { return allocator; }
 
         constexpr const vk::Extent2D get_extent ( ) const {
 

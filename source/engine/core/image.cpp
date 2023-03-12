@@ -13,6 +13,70 @@
 #include "../utils/logging.hpp"
 
 namespace engine {
+
+    auto create_image (std::size_t width, std::size_t height, vk::Format format, vk::ImageUsageFlags usage) {
+
+        auto device = Device::get();
+        vk::Image handle; VmaAllocation allocation;
+        
+        auto create_info = vk::ImageCreateInfo {
+            .flags = vk::ImageCreateFlags(),
+            .imageType = vk::ImageType::e2D,
+            .format = format,
+            .extent = {to_u32(width), to_u32(height), 1},
+            .mipLevels = 1,
+            .arrayLayers = 1,
+            .samples = vk::SampleCountFlagBits::e1,
+            .tiling = vk::ImageTiling::eOptimal,
+            .usage = usage,
+            .sharingMode = vk::SharingMode::eExclusive,
+            .initialLayout = vk::ImageLayout::eUndefined
+        };
+
+        try {
+
+            auto allocation_info = VmaAllocationCreateInfo {
+                .usage = VMA_MEMORY_USAGE_AUTO
+            };
+
+            vmaCreateImage(device->get_allocator(), reinterpret_cast<VkImageCreateInfo*>(&create_info),
+                &allocation_info, reinterpret_cast<VkImage*>(&handle), &allocation, nullptr);
+
+            auto requirements = device->get_handle().getImageMemoryRequirements(handle);
+            auto index = get_memory_index(requirements, vk::MemoryPropertyFlagBits::eDeviceLocal);
+
+            logi("Successfully created Image");
+
+        } catch (vk::SystemError error) {
+            loge("Failed to create Image");
+        }
+
+        return std::pair(handle, allocation);
+
+    }
+
+    vk::UniqueImageView create_view (vk::Image& image, vk::Format format, vk::ImageAspectFlags flags) {
+
+        auto subres_range = vk::ImageSubresourceRange {
+            .aspectMask = flags,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        };
+
+        auto create_info = vk::ImageViewCreateInfo {
+            .flags = vk::ImageViewCreateFlags(),
+            .image = image,
+            .viewType = vk::ImageViewType::e2D,
+            .format = format,
+            .components = vk::ComponentMapping(),
+            .subresourceRange = subres_range
+        };
+
+        return Device::get()->get_handle().createImageViewUnique(create_info);
+
+    }
     
     Image::Image (std::string_view path) {
 
@@ -26,7 +90,6 @@ namespace engine {
         size = width * height * 4; 
 
         create_handle();
-        create_view();
         create_sampler();
         create_descriptor_set();
 
@@ -36,13 +99,12 @@ namespace engine {
 
     }
 
-    Image::Image (std::size_t width, std::size_t height, std::vector<std::byte> pixels)
+    Image::Image (std::size_t width, std::size_t height, const std::vector<std::byte>& pixels)
         : width(width), height(height) { 
 
         size = pixels.size();
 
         create_handle();
-        create_view();
         create_sampler();
         create_descriptor_set();
 
@@ -52,68 +114,18 @@ namespace engine {
     Image::~Image ( ) {
 
         device->get_handle().destroySampler(sampler);
-        device->get_handle().destroyImageView(view);
-        device->get_handle().destroyImage(handle);
-        device->get_handle().freeMemory(memory);
+        vmaDestroyImage(device->get_allocator(), VkImage(handle), allocation);
 
     }
 
     void Image::create_handle ( ) {
 
-        auto create_info = vk::ImageCreateInfo {
-            .flags = vk::ImageCreateFlags(),
-            .imageType = vk::ImageType::e2D,
-            .format = format,
-            .extent = {to_u32(width), to_u32(height), 1},
-            .mipLevels = 1,
-            .arrayLayers = 1,
-            .samples = vk::SampleCountFlagBits::e1,
-            .tiling = vk::ImageTiling::eOptimal,
-            .usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
-            .sharingMode = vk::SharingMode::eExclusive,
-            .initialLayout = vk::ImageLayout::eUndefined
-        };
+        auto result = create_image(width, height, format, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled);
 
-        try {
-            handle = device->get_handle().createImage(create_info);
+        handle = result.first;
+        allocation = result.second;
 
-            auto requirements = device->get_handle().getImageMemoryRequirements(handle);
-            auto index = get_memory_index(requirements, vk::MemoryPropertyFlagBits::eDeviceLocal);
-
-            auto allocate_info = vk::MemoryAllocateInfo {
-                .allocationSize = requirements.size,
-                .memoryTypeIndex = index
-            };
-
-            memory = device->get_handle().allocateMemory(allocate_info);
-            device->get_handle().bindImageMemory(handle, memory, 0);
-            LOG_INFO("Successfully created Image");
-        } catch (vk::SystemError error) {
-            LOG_ERROR("Failed to create Image");
-        }
-
-    }
-
-    void Image::create_view ( ) {
-
-        auto subres_range = vk::ImageSubresourceRange {
-            .aspectMask = vk::ImageAspectFlagBits::eColor,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1
-        };
-
-        auto create_info = vk::ImageViewCreateInfo {
-            .flags = vk::ImageViewCreateFlags(),
-            .image = handle,
-            .viewType = vk::ImageViewType::e2D,
-            .format = format,
-            .components = vk::ComponentMapping(),
-            .subresourceRange = subres_range
-        };
-
-        view = device->get_handle().createImageView(create_info);
+        view = create_view(handle, format, vk::ImageAspectFlagBits::eColor);
 
     }
 
@@ -160,9 +172,9 @@ namespace engine {
 
         try {
             descriptor_pool = device->get_handle().createDescriptorPoolUnique(create_info);
-            LOG_INFO("Successfully created Descriptor Pool");
+            logi("Successfully created Descriptor Pool");
         } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to create Descriptor Pool");
+            loge("Failed to create Descriptor Pool");
         }
 
         auto layout = create_descriptor_set_layout();
@@ -175,15 +187,15 @@ namespace engine {
 
         try {
             auto result = device->get_handle().allocateDescriptorSets(allocate_info);
-            LOG_INFO("Allocated DescriptorSet's");
+            logi("Allocated DescriptorSet's");
             descriptor_set = result.at(0);
         } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to allocate DescriptorSet's");
+            loge("Failed to allocate DescriptorSet's");
         }
 
         auto image_info = vk::DescriptorImageInfo {
             .sampler = sampler,
-            .imageView = view,
+            .imageView = view.get(),
             .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
         };
 
@@ -201,7 +213,7 @@ namespace engine {
 
     }
 
-    void Image::set_data(std::vector<std::byte> pixels) {
+    void Image::set_data(const std::vector<std::byte>& pixels) {
 
         auto staging = Buffer(size, vk::BufferUsageFlagBits::eTransferSrc);
         staging.write(pixels.data());
@@ -227,8 +239,8 @@ namespace engine {
             .bufferRowLength = 0,
             .bufferImageHeight = 0,
             .imageSubresource = subres_layers,
-            .imageOffset = {0, 0, 0},
-            .imageExtent = {to_u32(width), to_u32(height), 1}
+            .imageOffset = { 0, 0, 0 },
+            .imageExtent = { to_u32(width), to_u32(height), 1 }
         };
 
         command_buffer.copyBufferToImage(staging.get_handle(), handle,
@@ -248,66 +260,23 @@ namespace engine {
         : width(width), height(height) {
 
         create_handle();
-        create_view();
+
+    }
+
+    DepthImage::~DepthImage ( ) {
+
+        vmaDestroyImage(device->get_allocator(), VkImage(handle), allocation);
 
     }
 
     void DepthImage::create_handle ( ) {
 
-        auto create_info = vk::ImageCreateInfo {
-            .flags = vk::ImageCreateFlags(),
-            .imageType = vk::ImageType::e2D,
-            .format = find_supported_format(),
-            .extent = {to_u32(width), to_u32(height), 1},
-            .mipLevels = 1,
-            .arrayLayers = 1,
-            .samples = vk::SampleCountFlagBits::e1,
-            .tiling = vk::ImageTiling::eOptimal,
-            .usage = vk::ImageUsageFlagBits::eDepthStencilAttachment,
-            .sharingMode = vk::SharingMode::eExclusive,
-            .initialLayout = vk::ImageLayout::eUndefined
-        };
+        auto result = create_image(width, height, find_supported_format(), vk::ImageUsageFlagBits::eDepthStencilAttachment);
 
-        try {
-            handle = device->get_handle().createImageUnique(create_info);
+        handle = result.first;
+        allocation = result.second;
 
-            auto requirements = device->get_handle().getImageMemoryRequirements(handle.get());
-            auto index = get_memory_index(requirements, vk::MemoryPropertyFlagBits::eDeviceLocal);
-
-            auto allocate_info = vk::MemoryAllocateInfo {
-                .allocationSize = requirements.size,
-                .memoryTypeIndex = index
-            };
-
-            memory = device->get_handle().allocateMemoryUnique(allocate_info);
-            device->get_handle().bindImageMemory(handle.get(), memory.get(), 0);
-            LOG_INFO("Successfully created Image");
-        } catch (vk::SystemError error) {
-            LOG_ERROR("Failed to create Image");
-        }
-
-    }
-
-    void DepthImage::create_view ( ) {
-
-        auto subres_range = vk::ImageSubresourceRange {
-            .aspectMask = vk::ImageAspectFlagBits::eDepth,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1
-        };
-
-        auto create_info = vk::ImageViewCreateInfo {
-            .flags = vk::ImageViewCreateFlags(),
-            .image = handle.get(),
-            .viewType = vk::ImageViewType::e2D,
-            .format = find_supported_format(),
-            .components = vk::ComponentMapping(),
-            .subresourceRange = subres_range
-        };
-
-        view = device->get_handle().createImageViewUnique(create_info);
+        view = create_view(handle, find_supported_format(), vk::ImageAspectFlagBits::eDepth);
 
     }
 

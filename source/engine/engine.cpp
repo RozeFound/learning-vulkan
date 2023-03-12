@@ -17,7 +17,7 @@ namespace engine {
 
     Engine::Engine (GLFWwindow* window) {
 
-        LOG_INFO("Creating Engine instance...");
+        logi("Creating Engine instance...");
 
         if constexpr (debug) {
 
@@ -27,7 +27,7 @@ namespace engine {
             auto minor = VK_API_VERSION_MINOR(version);
             auto patch = VK_API_VERSION_PATCH(version);
 
-            LOG_INFO("System support up to Vulkan {}.{}.{}", major, minor, patch);
+            logi("System support up to Vulkan {}.{}.{}", major, minor, patch);
 
         }
 
@@ -70,14 +70,14 @@ namespace engine {
 
         device->get_handle().waitIdle();
 
-        LOG_INFO("Destroying Engine...");
+        logi("Destroying Engine...");
 
         if (debug) device->get_instance().destroyDebugUtilsMessengerEXT(debug_messenger, nullptr, dldi);
 
-        LOG_INFO("Destroying Command Pool");
+        logi("Destroying Command Pool");
         device->get_handle().destroyCommandPool(command_pool);
 
-        LOG_INFO("Destroying Pipeline");
+        logi("Destroying Pipeline");
         device->get_handle().destroyPipelineLayout(pipeline_layout);
         device->get_handle().destroyDescriptorSetLayout(descriptor_set_layout);
         device->get_handle().destroyPipeline(pipeline);
@@ -110,9 +110,9 @@ namespace engine {
 
         try {
             command_pool = device->get_handle().createCommandPool(create_info);
-            LOG_INFO("Successfully created Command Pool");
+            logi("Successfully created Command Pool");
         } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to create Command Pool");
+            loge("Failed to create Command Pool");
         }
 
     }
@@ -121,20 +121,25 @@ namespace engine {
 
         auto& frame = swapchain->get_frames().at(index);
 
-        static auto startTime = std::chrono::high_resolution_clock::now();
+        static auto start = std::chrono::high_resolution_clock::now();
+        auto current = std::chrono::high_resolution_clock::now();
 
-        auto currentTime = std::chrono::high_resolution_clock::now();
-        float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+        float delta = std::chrono::duration<float, std::chrono::seconds::period>(start - current).count();
 
         auto aspect = static_cast<float>(swapchain->get_extent().width) / static_cast<float>(swapchain->get_extent().height);
 
         auto ubo = UniformBufferObject {
-            .model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
+            .model = glm::rotate(glm::mat4(1.0f), delta / 3 * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
             .view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
             .projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 10.0f)
         }; ubo.projection[1][1] *= -1;
 
         frame.commands.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(ubo), &ubo);
+
+        auto offsets = std::array<vk::DeviceSize, 1> { }; 
+        frame.commands.bindVertexBuffers(0, 1, &model->get_vertex(), offsets.data());
+        frame.commands.bindIndexBuffer(model->get_index(), 0, vk::IndexType::eUint16);
+        frame.commands.drawIndexed(model->get_indices_count(), 1, 0, 0, 0);
 
     }
 
@@ -146,16 +151,16 @@ namespace engine {
         try {
             command_buffer.begin(vk::CommandBufferBeginInfo());
         } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to begin command record");
+            loge("Failed to begin command record");
         }
 
-        insert_image_memory_barrier(frame.commands, frame.image, vk::ImageAspectFlagBits::eColor, 
+        insert_image_memory_barrier(command_buffer, frame.image, vk::ImageAspectFlagBits::eColor, 
             { vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eColorAttachmentOutput },
             { vk::AccessFlagBits::eNone, vk::AccessFlagBits::eColorAttachmentWrite },
             { vk::ImageLayout::eUndefined,  vk::ImageLayout::eColorAttachmentOptimal }
         );
 
-        insert_image_memory_barrier(frame.commands, frame.depth_buffer->get_handle(), vk::ImageAspectFlagBits::eDepth, 
+        insert_image_memory_barrier(command_buffer, frame.depth_buffer->get_handle(), vk::ImageAspectFlagBits::eDepth, 
             { vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
                 vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eLateFragmentTests },
             { vk::AccessFlagBits::eNone, vk::AccessFlagBits::eDepthStencilAttachmentWrite },
@@ -168,7 +173,7 @@ namespace engine {
             .resolveMode = vk::ResolveModeFlagBits::eNone,
             .loadOp = vk::AttachmentLoadOp::eClear,
             .storeOp = vk::AttachmentStoreOp::eStore,
-            .clearValue = vk::ClearValue { std::array { 1.f, 1.f, 1.f, 1.f } }
+            .clearValue = vk::ClearValue { std::array { .1f, .1f, .1f, 1.f } }
         };
 
         auto depth_attachment_info = vk::RenderingAttachmentInfoKHR {
@@ -189,7 +194,7 @@ namespace engine {
             .pDepthAttachment = &depth_attachment_info
         };
 
-        frame.commands.beginRenderingKHR(rendering_info, dldi);
+        command_buffer.beginRenderingKHR(rendering_info, dldi);
 
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, 1, &texture->get_descriptor_set(), 0, nullptr);
@@ -211,21 +216,15 @@ namespace engine {
 
         prepare_frame(index);
 
-        auto offsets = std::array<vk::DeviceSize, 1> { }; 
-        command_buffer.bindVertexBuffers(0, 1, &model->get_vertex(), offsets.data());
-        command_buffer.bindIndexBuffer(model->get_index(), 0, vk::IndexType::eUint16);
-
-        command_buffer.drawIndexed(model->get_indices_count(), 1, 0, 0, 0);
-
         if (is_imgui_enabled && on_ui_update) {
             UI::new_frame(); on_ui_update();
             ui->draw(command_buffer, index);
             UI::end_frame();
         }
 
-        frame.commands.endRenderingKHR(dldi);
+        command_buffer.endRenderingKHR(dldi);
 
-        insert_image_memory_barrier(frame.commands, frame.image, vk::ImageAspectFlagBits::eColor, 
+        insert_image_memory_barrier(command_buffer, frame.image, vk::ImageAspectFlagBits::eColor, 
             { vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eBottomOfPipe },
             { vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eNone },
             { vk::ImageLayout::eColorAttachmentOptimal,  vk::ImageLayout::ePresentSrcKHR }
@@ -234,7 +233,7 @@ namespace engine {
         try {
             command_buffer.end();
         } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to record command buffer");
+            loge("Failed to record command buffer");
         }
 
     }
@@ -246,7 +245,8 @@ namespace engine {
         constexpr auto timeout = std::numeric_limits<uint64_t>::max();
         const auto& frame = swapchain->get_frames().at(frame_number);
 
-        auto wait_result = device->get_handle().waitForFences(frame.in_flight.get(), VK_TRUE, timeout);
+        if (device->get_handle().waitForFences(frame.in_flight.get(), VK_TRUE, timeout) != vk::Result::eSuccess)
+            logw("Something goes wrong when waiting on fences");
         device->get_handle().resetFences(frame.in_flight.get());
 
         auto image_result = device->get_handle().acquireNextImageKHR(swapchain->get_handle(), timeout, frame.image_available.get());
@@ -270,7 +270,7 @@ namespace engine {
         try {
             graphics_queue.submit(submit_info, frame.in_flight.get());
         } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to submit draw command buffer")
+            loge("Failed to submit draw command buffer");
         }
 
         auto present_info = vk::PresentInfoKHR {
@@ -281,7 +281,8 @@ namespace engine {
             .pImageIndices = &image_result.value
         };
 
-        auto present_result = present_queue.presentKHR(present_info);
+        if (present_queue.presentKHR(present_info) != vk::Result::eSuccess)
+            logw("Failed to present image");
 
         frame_number = (frame_number + 1) % max_frames_in_flight;
     }

@@ -1,13 +1,54 @@
 #include <iostream>
+#include <filesystem>
 
 #include "logging.hpp"
 
 namespace engine {
 
-    VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT, 
-        VkDebugUtilsMessageTypeFlagsEXT, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,void*) {
+    std::string to_string(auto type) {         
 
-        std::cerr << pCallbackData->pMessage << std::endl;
+        if (std::is_same_v<decltype(type), VkDebugUtilsMessageTypeFlagsEXT>) {
+
+            auto flags = static_cast<vk::DebugUtilsMessageTypeFlagBitsEXT>(type);
+            using enum vk::DebugUtilsMessageTypeFlagBitsEXT;
+
+            switch (flags) {
+                case eGeneral: return "General";
+                case eValidation: return "Validation";
+                case ePerformance: return "Performance";
+                case eDeviceAddressBinding: return "DeviceAddressBinding";
+            }
+
+        }
+
+        if (std::is_same_v<decltype(type), VkDebugUtilsMessageSeverityFlagBitsEXT>) {
+
+            auto flags = static_cast<vk::DebugUtilsMessageSeverityFlagBitsEXT>(type);           
+            using enum vk::DebugUtilsMessageSeverityFlagBitsEXT;
+
+            switch (flags) {
+                case eVerbose: return "Verbose";
+                case eInfo: return "Info";
+                case eWarning: return "Warning";
+                case eError: return "Error";
+            }
+
+        }
+
+    }
+
+    VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, 
+        VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void*) {
+
+        auto type_flags = static_cast<vk::DebugUtilsMessageTypeFlagBitsEXT>(type);
+        auto severity_flags = static_cast<vk::DebugUtilsMessageSeverityFlagBitsEXT>(severity); 
+
+        using enum vk::DebugUtilsMessageTypeFlagBitsEXT;
+        using enum vk::DebugUtilsMessageSeverityFlagBitsEXT;
+
+        if(type_flags == ePerformance) {
+            log(pCallbackData->pMessage, log_level::verbose);
+        }
 
         return VK_FALSE;
     }
@@ -28,16 +69,25 @@ namespace engine {
 
     }
 
-    void log (std::string_view message, log_level level) {
+    void log (std::string_view message, log_level level, std::source_location location) {
 
         if (default_debug_level > level) return; 
 
         switch (level) {
-            case (log_level::verbose): std::cout << message << std::endl; break;
-            case (log_level::info): std::cout << "Info: " << message << std::endl; break;
-            case (log_level::warning): std::cout << "Warning: " << message << std::endl; break;
-            case (log_level::error): std::cerr << "Error: " << message << std::endl; break;
+            case log_level::info: std::clog << "Info: "; break;
+            case log_level::warning: std::clog << "Warning in "; break;
+            case log_level::error: std::clog << "Error in "; break;
+            default: break;
         }
+
+        if (level >= log_level::warning) {
+
+            auto file_name = std::filesystem::path(location.file_name()).filename().string();
+            auto output = fmt::format("{} ({}:{}) `{}`: {}", file_name, location.line(), location.column(), location.function_name(), message);
+
+            std::clog << output << std::endl;
+
+        } else std::clog << message << std::endl;
 
     }
 
@@ -59,14 +109,14 @@ namespace engine {
             default: device_type = "Other";
         };
 
-        LOG_INFO("Device Name: {}", properties.deviceName);
-        LOG_INFO("Device Type: {}", device_type);
+        logi("Device Name: {}", properties.deviceName);
+        logi("Device Type: {}", device_type);
 
         auto extensions = physical_device.enumerateDeviceExtensionProperties();
 
-        LOG_VERBOSE("Device can support extensions: ");
+        logv("Device can support extensions:");
         for (auto& extension : extensions)
-            LOG_VERBOSE("\t{}", extension.extensionName);
+            logv("\t{}", extension.extensionName);
 
     }
 
@@ -74,16 +124,16 @@ namespace engine {
 
         auto extensions = vk::enumerateInstanceExtensionProperties();
 
-        LOG_VERBOSE("Instance can support extensions:")
+        logv("Instance can support extensions:");
         for (const auto& extension : extensions) {
-            LOG_VERBOSE("\t{}", extension.extensionName);
+            logv("\t{}", extension.extensionName);
         }
 
         auto layers = vk::enumerateInstanceLayerProperties();
 
-        LOG_VERBOSE("Instance can support layers:")
+        logv("Instance can support layers:");
         for (const auto& layer : layers) {
-            LOG_VERBOSE("\t{}",layer.layerName);
+            logv("\t{}", layer.layerName);
         }
 
     }

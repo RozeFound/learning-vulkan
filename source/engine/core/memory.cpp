@@ -1,5 +1,7 @@
 #include <limits>
 
+#define VMA_IMPLEMENTATION
+
 #include "memory.hpp"
 
 #include "../utils/logging.hpp"
@@ -24,13 +26,13 @@ namespace engine {
 
     }
 
-    Buffer::Buffer (std::size_t size, vk::BufferUsageFlags usage, bool device_local) 
-        : size(size), device_local(device_local) {
+    BasicBuffer::BasicBuffer (std::size_t size, vk::BufferUsageFlags usage, bool persistent, bool device_local) 
+        : size(size), persistent(persistent), device_local(device_local) {
 
         auto flags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
 
         if (device_local) {
-            usage = vk::BufferUsageFlagBits::eTransferDst | usage;
+            usage |= vk::BufferUsageFlagBits::eTransferDst;
             flags = vk::MemoryPropertyFlagBits::eDeviceLocal;
         }
 
@@ -55,15 +57,56 @@ namespace engine {
             memory = device->get_handle().allocateMemoryUnique(allocate_info);
             device->get_handle().bindBufferMemory(handle.get(), memory.get(), 0);  
         } catch (vk::SystemError) {
-            LOG_ERROR("Failed to create buffer");
+            loge("Failed to create buffer");
         }
+
+        if (persistent) data_location = device->get_handle().mapMemory(memory.get(), 0, size);
 
     }
 
-    Buffer::~Buffer ( ) {
+    BasicBuffer::~BasicBuffer ( ) {
 
-        if (!device_local && persistent_memory) 
-            device->get_handle().unmapMemory(memory.get());
+        if (!persistent) device->get_handle().unmapMemory(memory.get());
+
+    }
+
+    VMABuffer::VMABuffer (std::size_t size, vk::BufferUsageFlags usage, bool persistent, bool device_local) 
+        : size(size), persistent(persistent), device_local(device_local) {
+
+        auto flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+
+        if(device_local) {
+            usage |= vk::BufferUsageFlagBits::eTransferDst;
+            flags = (VmaAllocationCreateFlagBits)0;
+        }
+
+        auto create_info = vk::BufferCreateInfo {
+            .flags = vk::BufferCreateFlags(),
+            .size = size, 
+            .usage = usage,
+            .sharingMode = vk::SharingMode::eExclusive
+        };
+
+        auto allocation_info = VmaAllocationCreateInfo {
+            .flags = flags,
+            .usage = VMA_MEMORY_USAGE_AUTO
+        };
+
+        if (!device_local) {
+            allocation_info.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+            allocation_info.preferredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        }
+
+        if (persistent) allocation_info.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
+
+        vmaCreateBuffer(Device::get()->get_allocator(), reinterpret_cast<VkBufferCreateInfo*>(&create_info),
+            &allocation_info, reinterpret_cast<VkBuffer*>(&handle), &allocation, &alloc_info);
+
+    }
+
+    VMABuffer::~VMABuffer ( ) {
+
+        vmaDestroyBuffer(Device::get()->get_allocator(), VkBuffer(handle), allocation);
 
     }
 

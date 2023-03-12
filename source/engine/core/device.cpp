@@ -26,20 +26,30 @@ namespace engine {
         make_instance();
 
         auto result = glfwCreateWindowSurface(instance, window, nullptr, reinterpret_cast<VkSurfaceKHR*>(&surface));
-        if (result != VK_SUCCESS) LOG_ERROR("Cannot abstract GLFW surface for Vulkan");
+        if (result != VK_SUCCESS) loge("Cannot abstract GLFW surface for Vulkan");
 
         choose_physical_device();
         create_handle();
 
+        auto create_info = VmaAllocatorCreateInfo {
+            .physicalDevice = gpu,
+            .device = handle,
+            .instance = instance
+        };
+
+        vmaCreateAllocator(&create_info, &allocator);
+        
     }
 
     Device::~Device ( ) {
 
-        LOG_INFO("Destroying Device");
+        logi("Destroying Allocator");
+        vmaDestroyAllocator(allocator);
+        logi("Destroying Device");
         handle.destroy();
-        LOG_INFO("Destroying Surface");
+        logi("Destroying Surface");
         instance.destroySurfaceKHR(surface);
-        LOG_INFO("Destroying Instance");
+        logi("Destroying Instance");
         instance.destroy();
 
     }
@@ -48,7 +58,7 @@ namespace engine {
 
         uint32_t glfw_extension_count = 0;
         auto glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
-        if (!glfw_extensions) LOG_WARNING("Failed to fetch required GLFW Extensions!");
+        if (!glfw_extensions) logw("Failed to fetch required GLFW Extensions!");
 
         auto extensions = std::vector(glfw_extensions, glfw_extensions + glfw_extension_count);
         auto layers = std::vector<const char*>();
@@ -57,9 +67,9 @@ namespace engine {
 
             extensions.push_back("VK_EXT_debug_utils");
 
-            LOG_VERBOSE("Extensions to be requested: ");
+            logv("Extensions to be requested: ");
             for (auto& extension : extensions) {
-                LOG_VERBOSE("\t{}", extension);
+                logv("\t{}", extension);
             }
 
             layers.push_back("VK_LAYER_KHRONOS_validation");
@@ -68,6 +78,12 @@ namespace engine {
 
         }
 
+        auto enables = vk::ValidationFeatureEnableEXT { vk::ValidationFeatureEnableEXT::eBestPractices };
+        auto features = vk::ValidationFeaturesEXT { 
+             .enabledValidationFeatureCount = 1,
+            .pEnabledValidationFeatures = &enables
+        };
+
         extensions.push_back("VK_KHR_get_physical_device_properties2");
 
         auto app_info = vk::ApplicationInfo {
@@ -75,6 +91,7 @@ namespace engine {
         };
 
         auto create_info = vk::InstanceCreateInfo {
+            .pNext = &features,
             .flags = vk::InstanceCreateFlags(),
             .pApplicationInfo = &app_info,
             .enabledLayerCount = to_u32(layers.size()),
@@ -85,10 +102,10 @@ namespace engine {
 
         try {
             instance = vk::createInstance(create_info);
-            LOG_INFO("Successfully created Instance");
+            logi("Successfully created Instance");
             
         } catch(vk::SystemError err) {
-            LOG_ERROR("Failed to create Instance");
+            loge("Failed to create Instance");
         }
 
     } 
@@ -112,7 +129,7 @@ namespace engine {
 
         auto device = std::ranges::find_if(devices, suitable);
         if (device != std::end(devices)) gpu = *device;
-        else LOG_ERROR("Failed to get Physical Device");
+        else loge("Failed to get Physical Device");
 
         log_device_properties(gpu);
 
@@ -180,9 +197,9 @@ namespace engine {
 
         try {
             handle = gpu.createDevice(device_info);
-            LOG_INFO("Device was successfully abstracted");
+            logi("Device was successfully abstracted");
         } catch (vk::SystemError err) {
-            LOG_ERROR("Failed to abstract Physical Device");
+            loge("Failed to abstract Physical Device");
         }
 
     }

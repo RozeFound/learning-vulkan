@@ -18,7 +18,7 @@ App::App (std::size_t width, std::size_t height, std::string_view title) {
 
 GLFWwindow* App::create_window (std::size_t width, std::size_t height, std::string_view title) {
 
-    LOG_INFO("Creating window...");
+    logi("Creating window...");
 
     glfwInit();
 
@@ -38,8 +38,8 @@ GLFWwindow* App::create_window (std::size_t width, std::size_t height, std::stri
 
     glfwSetFramebufferSizeCallback(window, callback);
 
-    if (window) {LOG_INFO("Successfully created {} window!", title);}
-    else LOG_ERROR("Failed to create {} window", title);
+    if (window) logi("Successfully created {} window!", title);
+    else loge("Failed to create {} window", title);
 
     return window;
 
