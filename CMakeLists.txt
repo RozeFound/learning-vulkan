@@ -98,6 +98,7 @@ CPMAddPackage(
 
 add_library(vma INTERFACE EXCLUDE_FROM_ALL "${VulkanMemoryAllocator_SOURCE_DIR}/include/vk_mem_alloc.h")
 target_include_directories(vma INTERFACE $<BUILD_INTERFACE:${VulkanMemoryAllocator_SOURCE_DIR}>/include)
+target_compile_options(vma INTERFACE "-Wno-nullability-completeness")
 
 # ---- Add source files ----
 
