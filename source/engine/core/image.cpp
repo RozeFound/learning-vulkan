@@ -116,16 +116,12 @@ namespace engine {
         vmaDestroyImage(device->get_allocator(), VkImage(handle), allocation);
 
     }
-
+    
     void Image::create_handle ( ) {
 
-        auto result = create_image(width, height, format, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled);
-
-        handle = result.first;
-        allocation = result.second;
-
+        std::tie(handle, allocation) = create_image(width, height, format, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled);
         view = create_view(handle, format, vk::ImageAspectFlagBits::eColor);
-
+        
     }
 
     void Image::create_sampler ( ) {
@@ -255,27 +251,16 @@ namespace engine {
 
     }
 
-    DepthImage::DepthImage (std::size_t width, std::size_t height) 
-        : width(width), height(height) {
+    DepthImage::DepthImage (std::size_t width, std::size_t height) : width(width), height(height) {
 
-        create_handle();
+        std::tie(handle, allocation) = create_image(width, height, find_supported_format(), vk::ImageUsageFlagBits::eDepthStencilAttachment);
+        view = create_view(handle, find_supported_format(), vk::ImageAspectFlagBits::eDepth);
 
     }
 
     DepthImage::~DepthImage ( ) {
 
         vmaDestroyImage(device->get_allocator(), VkImage(handle), allocation);
-
-    }
-
-    void DepthImage::create_handle ( ) {
-
-        auto result = create_image(width, height, find_supported_format(), vk::ImageUsageFlagBits::eDepthStencilAttachment);
-
-        handle = result.first;
-        allocation = result.second;
-
-        view = create_view(handle, find_supported_format(), vk::ImageAspectFlagBits::eDepth);
 
     }
 

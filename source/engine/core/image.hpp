@@ -57,14 +57,12 @@ namespace engine {
         vk::UniqueImageView view;
         VmaAllocation allocation;
 
-        void create_handle ( );
-
         public:
 
         DepthImage (std::size_t width, std::size_t height);
         ~DepthImage ( );
 
-        static vk::Format find_supported_format ();
+        static vk::Format find_supported_format ( );
 
         constexpr const vk::Image& get_handle ( ) const { return handle; }
         constexpr const vk::ImageView& get_view ( ) const { return view.get(); }
