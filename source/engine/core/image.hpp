@@ -11,6 +11,7 @@ namespace engine {
     class Image {
 
         std::size_t width, height, size;
+        uint32_t mip_levels;
 
         std::shared_ptr<Device> device = Device::get();
 
@@ -18,7 +19,7 @@ namespace engine {
         vk::UniqueImageView view;
 
         VmaAllocation allocation;
-        vk::Sampler sampler;
+        vk::UniqueSampler sampler;
 
         vk::UniqueDescriptorPool descriptor_pool;
         vk::DescriptorSet descriptor_set;
@@ -28,6 +29,7 @@ namespace engine {
         void create_handle ( );
         void create_sampler ( );
         void create_descriptor_set ( );
+        void generate_mipmaps (const vk::CommandBuffer& command_buffer);
 
         public:
 
@@ -38,7 +40,7 @@ namespace engine {
         void set_data(const std::vector<std::byte>& pixels);
 
         constexpr const vk::ImageView& get_view ( ) const { return view.get(); }
-        constexpr const vk::Sampler& get_sampler ( ) const { return sampler; }
+        constexpr const vk::Sampler& get_sampler ( ) const { return sampler.get(); }
 
         constexpr const vk::DescriptorSet& get_descriptor_set ( ) const { return descriptor_set; }
 
@@ -57,6 +59,8 @@ namespace engine {
         vk::UniqueImageView view;
         VmaAllocation allocation;
 
+        vk::Format format = find_supported_format();
+
         public:
 
         DepthImage (std::size_t width, std::size_t height);
@@ -69,6 +73,6 @@ namespace engine {
 
     };
 
-    vk::UniqueImageView create_view (vk::Image& image, vk::Format format, vk::ImageAspectFlags flags);
+    vk::UniqueImageView create_view (vk::Image& image, vk::Format format, vk::ImageAspectFlags flags, uint32_t mip_levels = 1);
 
 }

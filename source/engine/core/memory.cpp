@@ -127,14 +127,22 @@ namespace engine {
 
     }
 
+    void insert_image_memory_barrier (const vk::CommandBuffer& command_buffer, 
+        const vk::ImageMemoryBarrier& barrier, const std::array<vk::PipelineStageFlags, 2> stages) {
+
+        command_buffer.pipelineBarrier(stages.at(0), stages.at(1),
+            vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrier);
+
+    }
+
     void insert_image_memory_barrier (const vk::CommandBuffer& command_buffer, const vk::Image& image,
         vk::ImageAspectFlags aspect_flags, const std::array<vk::PipelineStageFlags, 2> stages, 
-        const std::array<vk::AccessFlags, 2> access_flags, const std::array<vk::ImageLayout, 2> layouts) {
+        const std::array<vk::AccessFlags, 2> access_flags, const std::array<vk::ImageLayout, 2> layouts, uint32_t mip_levels) {
 
         auto subres_range = vk::ImageSubresourceRange {
             .aspectMask = aspect_flags,
             .baseMipLevel = 0,
-            .levelCount = 1,
+            .levelCount = mip_levels,
             .baseArrayLayer = 0,
             .layerCount = 1
         };
@@ -150,8 +158,7 @@ namespace engine {
             .subresourceRange = subres_range
         };
 
-        command_buffer.pipelineBarrier(stages.at(0), stages.at(1),
-            vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &barrier);
+        return insert_image_memory_barrier(command_buffer, barrier, stages);
 
     }
 

@@ -7,10 +7,11 @@ namespace engine {
         vk::Queue queue;
         vk::CommandPool pool;
         vk::CommandBuffer buffer;
+        vk::UniqueFence submition_completed;
 
         public:
 
-        TransientBuffer ( );
+        TransientBuffer (bool graphics_capable = false);
         ~TransientBuffer ( );
 
         vk::CommandBuffer& get ( );

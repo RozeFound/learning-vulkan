@@ -13,7 +13,7 @@
 
 namespace engine {
 
-    auto create_image (std::size_t width, std::size_t height, vk::Format format, vk::ImageUsageFlags usage) {
+    auto create_image (std::size_t width, std::size_t height, uint32_t mip_levels, vk::Format format, vk::ImageUsageFlags usage) {
 
         auto device = Device::get();
         vk::Image handle; VmaAllocation allocation;
@@ -23,7 +23,7 @@ namespace engine {
             .imageType = vk::ImageType::e2D,
             .format = format,
             .extent = {to_u32(width), to_u32(height), 1},
-            .mipLevels = 1,
+            .mipLevels = mip_levels,
             .arrayLayers = 1,
             .samples = vk::SampleCountFlagBits::e1,
             .tiling = vk::ImageTiling::eOptimal,
@@ -41,9 +41,6 @@ namespace engine {
             vmaCreateImage(device->get_allocator(), reinterpret_cast<VkImageCreateInfo*>(&create_info),
                 &allocation_info, reinterpret_cast<VkImage*>(&handle), &allocation, nullptr);
 
-            auto requirements = device->get_handle().getImageMemoryRequirements(handle);
-            auto index = get_memory_index(requirements, vk::MemoryPropertyFlagBits::eDeviceLocal);
-
             logi("Successfully created Image");
 
         } catch (vk::SystemError error) {
@@ -54,12 +51,12 @@ namespace engine {
 
     }
 
-    vk::UniqueImageView create_view (vk::Image& image, vk::Format format, vk::ImageAspectFlags flags) {
+    vk::UniqueImageView create_view (vk::Image& image, vk::Format format, vk::ImageAspectFlags flags, uint32_t mip_levels) {
 
         auto subres_range = vk::ImageSubresourceRange {
             .aspectMask = flags,
             .baseMipLevel = 0,
-            .levelCount = 1,
+            .levelCount = mip_levels,
             .baseArrayLayer = 0,
             .layerCount = 1
         };
@@ -89,11 +86,7 @@ namespace engine {
         size = width * height * 4; 
 
         create_handle();
-        create_sampler();
-        create_descriptor_set();
-
         set_data(std::vector<std::byte>(pixels, pixels + size));
-
         stbi_image_free(pixels);
 
     }
@@ -102,25 +95,28 @@ namespace engine {
         : width(width), height(height) { 
 
         size = pixels.size();
-
         create_handle();
-        create_sampler();
-        create_descriptor_set();
-
         set_data(pixels);
+
     };
 
     Image::~Image ( ) {
 
-        device->get_handle().destroySampler(sampler);
         vmaDestroyImage(device->get_allocator(), VkImage(handle), allocation);
 
     }
     
     void Image::create_handle ( ) {
 
-        std::tie(handle, allocation) = create_image(width, height, format, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled);
-        view = create_view(handle, format, vk::ImageAspectFlagBits::eColor);
+        mip_levels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
+
+        using enum vk::ImageUsageFlagBits;
+
+        std::tie(handle, allocation) = create_image(width, height, mip_levels, format, eTransferSrc | eTransferDst | eSampled);
+        view = create_view(handle, format, vk::ImageAspectFlagBits::eColor, mip_levels);
+
+        create_sampler();
+        create_descriptor_set();
         
     }
 
@@ -142,12 +138,12 @@ namespace engine {
             .compareEnable = VK_FALSE,
             .compareOp = vk::CompareOp::eAlways,
             .minLod = -0.f,
-            .maxLod = 0.f,
+            .maxLod = static_cast<float>(mip_levels),
             .borderColor = vk::BorderColor::eFloatOpaqueBlack,
             .unnormalizedCoordinates = VK_FALSE
         };
 
-        sampler = device->get_handle().createSampler(create_info);
+        sampler = device->get_handle().createSamplerUnique(create_info);
 
     }
 
@@ -189,7 +185,7 @@ namespace engine {
         }
 
         auto image_info = vk::DescriptorImageInfo {
-            .sampler = sampler,
+            .sampler = sampler.get(),
             .imageView = view.get(),
             .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
         };
@@ -208,18 +204,99 @@ namespace engine {
 
     }
 
+    void Image::generate_mipmaps (const vk::CommandBuffer& command_buffer) {
+
+        auto barrier = vk::ImageMemoryBarrier {
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .image = handle,
+            .subresourceRange = {
+                .aspectMask = vk::ImageAspectFlagBits::eColor,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+        };
+
+        int32_t mip_width = std::make_signed_t<uint32_t>(to_u32(width));
+        int32_t mip_height = std::make_signed_t<uint32_t>(to_u32(height));
+
+        for (uint32_t i = 1; i < mip_levels; i++) {
+
+            barrier.subresourceRange.baseMipLevel = i - 1;
+            barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+            barrier.dstAccessMask = vk::AccessFlagBits::eTransferRead;
+            barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+            barrier.newLayout = vk::ImageLayout::eTransferSrcOptimal;
+
+            insert_image_memory_barrier(command_buffer, barrier, 
+                { vk::PipelineStageFlagBits::eTransfer, 
+                    vk::PipelineStageFlagBits::eTransfer }
+            );
+
+            auto blit = vk::ImageBlit {
+                .srcSubresource = {
+                    .aspectMask = vk::ImageAspectFlagBits::eColor,
+                    .mipLevel = i - 1,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1
+                },
+                .srcOffsets = { { 0, 0, 0, mip_width, mip_height, 1 } },
+                .dstSubresource = {
+                    .aspectMask = vk::ImageAspectFlagBits::eColor,
+                    .mipLevel = i,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1
+                },
+                .dstOffsets ={ { 0, 0, 0, mip_width > 1 ? mip_width / 2 : 1, mip_height > 1 ? mip_height / 2 : 1, 1 } }
+            };
+
+            command_buffer.blitImage(
+                handle, vk::ImageLayout::eTransferSrcOptimal,
+                handle, vk::ImageLayout::eTransferDstOptimal,
+                1, &blit, vk::Filter::eLinear
+            );
+
+            barrier.srcAccessMask = vk::AccessFlagBits::eTransferRead;
+            barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+            barrier.oldLayout = vk::ImageLayout::eTransferSrcOptimal;
+            barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+
+            insert_image_memory_barrier(command_buffer, barrier,
+                { vk::PipelineStageFlagBits::eTransfer, 
+                    vk::PipelineStageFlagBits::eFragmentShader }
+            );
+
+            if (mip_width > 1) mip_width /= 2;
+            if (mip_height > 1) mip_height /= 2;
+
+        }
+
+        barrier.subresourceRange.baseMipLevel = mip_levels - 1;
+        barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+        barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+        barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+
+        insert_image_memory_barrier(command_buffer, barrier,
+            { vk::PipelineStageFlagBits::eTransfer, 
+                vk::PipelineStageFlagBits::eFragmentShader }
+        );
+
+    }
+
     void Image::set_data(const std::vector<std::byte>& pixels) {
 
         auto staging = Buffer(size, vk::BufferUsageFlagBits::eTransferSrc);
         staging.write(pixels.data());
 
-        auto transient_buffer = TransientBuffer();
+        auto transient_buffer = TransientBuffer(true);
         auto command_buffer = transient_buffer.get();
 
         insert_image_memory_barrier(command_buffer, handle, vk::ImageAspectFlagBits::eColor, 
             { vk::PipelineStageFlagBits::eHost, vk::PipelineStageFlagBits::eTransfer },
             { vk::AccessFlagBits::eNone, vk::AccessFlagBits::eTransferWrite },
-            { vk::ImageLayout::eUndefined,  vk::ImageLayout::eTransferDstOptimal }
+            { vk::ImageLayout::eUndefined,  vk::ImageLayout::eTransferDstOptimal }, mip_levels
         );
 
         auto subres_layers = vk::ImageSubresourceLayers {
@@ -241,11 +318,7 @@ namespace engine {
         command_buffer.copyBufferToImage(staging.get_handle(), handle,
             vk::ImageLayout::eTransferDstOptimal, 1, &region);
 
-        insert_image_memory_barrier(command_buffer, handle, vk::ImageAspectFlagBits::eColor, 
-            { vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader },
-            { vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead },
-            { vk::ImageLayout::eTransferDstOptimal,  vk::ImageLayout::eShaderReadOnlyOptimal }
-        );
+        generate_mipmaps(command_buffer);
 
         transient_buffer.submit();
 
@@ -253,8 +326,8 @@ namespace engine {
 
     DepthImage::DepthImage (std::size_t width, std::size_t height) : width(width), height(height) {
 
-        std::tie(handle, allocation) = create_image(width, height, find_supported_format(), vk::ImageUsageFlagBits::eDepthStencilAttachment);
-        view = create_view(handle, find_supported_format(), vk::ImageAspectFlagBits::eDepth);
+        std::tie(handle, allocation) = create_image(width, height, 1, format, vk::ImageUsageFlagBits::eDepthStencilAttachment);
+        view = create_view(handle, format, vk::ImageAspectFlagBits::eDepth);
 
     }
 

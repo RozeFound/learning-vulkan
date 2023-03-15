@@ -11,9 +11,12 @@ namespace engine {
     void copy_buffer (const vk::Buffer& source, const vk::Buffer& destination, std::size_t size);
     uint32_t get_memory_index (vk::MemoryRequirements, vk::MemoryPropertyFlags);
 
+    void insert_image_memory_barrier (const vk::CommandBuffer& command_buffer, 
+        const vk::ImageMemoryBarrier& barrier, const std::array<vk::PipelineStageFlags, 2> stages);
+
     void insert_image_memory_barrier (const vk::CommandBuffer& command_buffer, const vk::Image& image,
         vk::ImageAspectFlags aspect_flags, const std::array<vk::PipelineStageFlags, 2> stages, 
-        const std::array<vk::AccessFlags, 2> access_flags, const std::array<vk::ImageLayout, 2> layouts);
+        const std::array<vk::AccessFlags, 2> access_flags, const std::array<vk::ImageLayout, 2> layouts, uint32_t mip_levels = 1);
 
     class BasicBuffer {
 
