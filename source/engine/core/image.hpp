@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <span>
 
 #include <vk_mem_alloc.h>
 
@@ -34,10 +35,10 @@ namespace engine {
         public:
 
         Image (std::string_view path);
-        Image (std::size_t width, std::size_t height, const std::vector<std::byte>& pixels);
+        Image (std::size_t width, std::size_t height, std::span<std::byte> pixels);
         ~Image ( );
 
-        void set_data(const std::vector<std::byte>& pixels);
+        void set_data(std::span<std::byte> pixels);
 
         constexpr const vk::ImageView& get_view ( ) const { return view.get(); }
         constexpr const vk::Sampler& get_sampler ( ) const { return sampler.get(); }

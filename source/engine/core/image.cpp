@@ -86,12 +86,12 @@ namespace engine {
         size = width * height * 4; 
 
         create_handle();
-        set_data(std::vector<std::byte>(pixels, pixels + size));
+        set_data({pixels, pixels + size});
         stbi_image_free(pixels);
 
     }
 
-    Image::Image (std::size_t width, std::size_t height, const std::vector<std::byte>& pixels)
+    Image::Image (std::size_t width, std::size_t height, std::span<std::byte> pixels)
         : width(width), height(height) { 
 
         size = pixels.size();
@@ -285,7 +285,7 @@ namespace engine {
 
     }
 
-    void Image::set_data(const std::vector<std::byte>& pixels) {
+    void Image::set_data(std::span<std::byte> pixels) {
 
         auto staging = Buffer(size, vk::BufferUsageFlagBits::eTransferSrc);
         staging.write(pixels.data());

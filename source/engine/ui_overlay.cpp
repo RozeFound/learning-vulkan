@@ -1,3 +1,5 @@
+#include <map>
+
 #include "roboto_regular.h"
 #include <imgui.h>
 
@@ -71,7 +73,7 @@ namespace engine {
     }
 
     bool UI::update_buffers (uint32_t index) {
-
+        
         auto draw_data = ImGui::GetDrawData();
 
         if (!draw_data || draw_data->CmdListsCount == 0) return false;
@@ -105,7 +107,32 @@ namespace engine {
 
     }
 
+    static std::map<std::string_view, double> perf_counters = { };
+
+    ScopedTimer UI::add_perf_counter (std::source_location location) {
+
+        auto callback = [location] (double duration) {
+            perf_counters[location.function_name()] = duration;
+        };
+
+        return ScopedTimer(callback);
+
+    }
+
     void UI::draw (vk::CommandBuffer& command_buffer, uint32_t index) {
+
+        SCOPED_PERF_LOG;
+
+        if (!perf_counters.empty()) {
+
+            ImGui::Begin("Perf Counters", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+            for (auto[name, duration] : perf_counters)
+                ImGui::Text("%s: %.3fms", name.data(), duration);
+                
+            ImGui::End();
+
+        }    
 
         ImGui::Render();
 

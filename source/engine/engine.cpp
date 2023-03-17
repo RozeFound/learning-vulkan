@@ -86,6 +86,8 @@ namespace engine {
 
     void Engine::remake_swapchain ( ) {
 
+        SCOPED_PERF_LOG;
+
         is_framebuffer_resized = false;
         
         auto new_extent = device->get_extent();
@@ -119,6 +121,8 @@ namespace engine {
 
     void Engine::prepare_frame (uint32_t index) {
 
+        SCOPED_PERF_LOG;
+
         auto& frame = swapchain->get_frames().at(index);
 
         static auto start = std::chrono::high_resolution_clock::now();
@@ -144,6 +148,8 @@ namespace engine {
     }
 
     void Engine::record_draw_commands (uint32_t index) {
+
+        SCOPED_PERF_LOG;
 
         auto& frame = swapchain->get_frames().at(index);
         auto& command_buffer = frame.commands;
@@ -239,6 +245,8 @@ namespace engine {
     }
 
     void Engine::draw () {
+
+        SCOPED_PERF_LOG;
 
         if (is_framebuffer_resized) return remake_swapchain();
 

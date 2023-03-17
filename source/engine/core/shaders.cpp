@@ -1,6 +1,5 @@
 #include <fstream>
 #include <stdexcept>
-#include <vector>
 
 #include "shaders.hpp"
 

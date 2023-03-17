@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <source_location>
 
 #include <backends/imgui_impl_glfw.h>
 
@@ -34,6 +35,8 @@ namespace engine {
         UI (uint32_t image_count) : image_count(image_count) { create_handle(); }
         ~UI ( );
 
+        static ScopedTimer add_perf_counter (std::source_location = std::source_location::current());
+
         static void new_frame();
         void draw (vk::CommandBuffer&, uint32_t index);
         static void end_frame();
@@ -41,3 +44,5 @@ namespace engine {
     };
 
 }
+
+#define SCOPED_PERF_LOG auto timer__LINE__ = engine::UI::add_perf_counter()
