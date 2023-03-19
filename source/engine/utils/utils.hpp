@@ -56,5 +56,7 @@ namespace engine {
     vk::UniqueSemaphore make_semaphore (const vk::Device& device);
     vk::UniqueFence make_fence (const vk::Device& device);
 
+    vk::SampleCountFlagBits get_max_sample_count (const vk::PhysicalDevice& physical_device);
+
     uint32_t to_u32 (std::size_t value);
 }

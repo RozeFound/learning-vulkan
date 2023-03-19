@@ -61,7 +61,7 @@ namespace engine {
 
         if (is_imgui_enabled) ui = std::make_unique<UI>(max_frames_in_flight);
 
-        texture = std::make_unique<Image>("textures/viking_room.png");
+        texture = std::make_unique<TexImage>("textures/viking_room.png");
         model = std::make_unique<Model>("models/viking_room.obj");
 
     }
@@ -134,8 +134,8 @@ namespace engine {
 
         auto ubo = UniformBufferObject {
             .model = glm::rotate(glm::mat4(1.0f), delta / 3 * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
-            .view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
-            .projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 10.0f)
+            .view = glm::lookAt(glm::vec3(2.0f, 1.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.3f), glm::vec3(0.0f, 0.0f, 1.0f)),
+            .projection = glm::perspective(glm::radians(45.0f), aspect, .1f, 10.0f)
         }; ubo.projection[1][1] *= -1;
 
         frame.commands.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(ubo), &ubo);
@@ -174,9 +174,11 @@ namespace engine {
         );
 
         auto color_attachment_info = vk::RenderingAttachmentInfoKHR {
-            .imageView = frame.view.get(),
+            .imageView = frame.color_buffer->get_view(),
             .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
-            .resolveMode = vk::ResolveModeFlagBits::eNone,
+            .resolveMode = vk::ResolveModeFlagBits::eAverage,
+            .resolveImageView = frame.view.get(),
+            .resolveImageLayout = vk::ImageLayout::eColorAttachmentOptimal,
             .loadOp = vk::AttachmentLoadOp::eClear,
             .storeOp = vk::AttachmentStoreOp::eStore,
             .clearValue = vk::ClearValue { std::array { .1f, .1f, .1f, 1.f } }

@@ -169,6 +169,7 @@ namespace engine {
 
         auto device_features = vk::PhysicalDeviceFeatures();
         device_features.samplerAnisotropy = VK_TRUE;
+        device_features.sampleRateShading = VK_TRUE;
 
         auto extensions = std::vector { "VK_KHR_swapchain" };
         auto layers = std::vector<const char*>();

@@ -56,6 +56,30 @@ namespace engine {
 
     }
 
+        vk::SampleCountFlagBits get_max_sample_count (const vk::PhysicalDevice& physical_device) {
+
+        auto properties = physical_device.getProperties();
+
+        auto color_samples_count = properties.limits.framebufferColorSampleCounts;
+        auto depth_samples_count = properties.limits.framebufferDepthSampleCounts;
+
+        auto sample_counts = color_samples_count & depth_samples_count;
+
+        using enum vk::SampleCountFlagBits;
+
+        auto sample_count = e1;
+
+        if(sample_counts & e64) sample_count = e64;
+        else if(sample_counts & e32) sample_count = e32;
+        else if(sample_counts & e16) sample_count = e16;
+        else if(sample_counts & e8) sample_count = e8;
+        else if(sample_counts & e4) sample_count = e4;
+        else if(sample_counts & e2) sample_count = e2;
+
+        return sample_count;
+
+    }
+
     uint32_t to_u32 (std::size_t value) {
         return static_cast<uint32_t>(value);
     }

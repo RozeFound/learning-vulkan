@@ -68,7 +68,7 @@ namespace engine {
         std::size_t size = width * height * 4;
 
         auto data = std::vector<std::byte>(reinterpret_cast<std::byte*>(pixels), reinterpret_cast<std::byte*>(pixels) + size);
-        font_texture = std::make_unique<Image>(width, height, data);
+        font_texture = std::make_unique<TexImage>(width, height, data);
 
     }
 

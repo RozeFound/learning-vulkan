@@ -63,6 +63,9 @@ namespace engine {
 
     void SwapChain::make_frames ( ) {
 
+        depth_buffer = std::make_shared<DepthImage>(extent.width, extent.height);
+        color_buffer = std::make_shared<ColorImage>(extent.width, extent.height);
+
         auto images = device->get_handle().getSwapchainImagesKHR(handle.get());
         frames.resize(images.size());
 
@@ -70,7 +73,9 @@ namespace engine {
 
 			frames.at(i).image = images.at(i);
 			frames.at(i).view = create_view(images.at(i), device->get_format().format, vk::ImageAspectFlagBits::eColor);
-            frames.at(i).depth_buffer = std::make_unique<DepthImage>(extent.width, extent.height);
+
+            frames.at(i).depth_buffer = depth_buffer;
+            frames.at(i).color_buffer = color_buffer;
 
 		};
 

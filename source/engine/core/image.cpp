@@ -13,7 +13,8 @@
 
 namespace engine {
 
-    auto create_image (std::size_t width, std::size_t height, uint32_t mip_levels, vk::Format format, vk::ImageUsageFlags usage) {
+    auto create_image (std::size_t width, std::size_t height, uint32_t mip_levels,
+        vk::SampleCountFlagBits sample_count, vk::Format format, vk::ImageUsageFlags usage) {
 
         auto device = Device::get();
         vk::Image handle; VmaAllocation allocation;
@@ -25,7 +26,7 @@ namespace engine {
             .extent = {to_u32(width), to_u32(height), 1},
             .mipLevels = mip_levels,
             .arrayLayers = 1,
-            .samples = vk::SampleCountFlagBits::e1,
+            .samples = sample_count,
             .tiling = vk::ImageTiling::eOptimal,
             .usage = usage,
             .sharingMode = vk::SharingMode::eExclusive,
@@ -74,7 +75,7 @@ namespace engine {
 
     }
     
-    Image::Image (std::string_view path) {
+    TexImage::TexImage (std::string_view path) {
 
         int width, height, channels;
 
@@ -91,28 +92,23 @@ namespace engine {
 
     }
 
-    Image::Image (std::size_t width, std::size_t height, std::span<std::byte> pixels)
-        : width(width), height(height) { 
+    TexImage::TexImage (std::size_t width, std::size_t height, std::span<std::byte> pixels) :
+        Image(width, height) { 
 
         size = pixels.size();
         create_handle();
         set_data(pixels);
 
     };
-
-    Image::~Image ( ) {
-
-        vmaDestroyImage(device->get_allocator(), VkImage(handle), allocation);
-
-    }
     
-    void Image::create_handle ( ) {
+    void TexImage::create_handle ( ) {
 
         mip_levels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
 
         using enum vk::ImageUsageFlagBits;
+        using enum vk::SampleCountFlagBits;
 
-        std::tie(handle, allocation) = create_image(width, height, mip_levels, format, eTransferSrc | eTransferDst | eSampled);
+        std::tie(handle, allocation) = create_image(width, height, mip_levels, e1, format, eTransferSrc | eTransferDst | eSampled);
         view = create_view(handle, format, vk::ImageAspectFlagBits::eColor, mip_levels);
 
         create_sampler();
@@ -120,7 +116,7 @@ namespace engine {
         
     }
 
-    void Image::create_sampler ( ) {
+    void TexImage::create_sampler ( ) {
 
         auto properties = device->get_gpu().getProperties();
 
@@ -147,7 +143,7 @@ namespace engine {
 
     }
 
-    void Image::create_descriptor_set ( ) {
+    void TexImage::create_descriptor_set ( ) {
 
         auto pool_size = vk::DescriptorPoolSize {
             .type = vk::DescriptorType::eCombinedImageSampler,
@@ -204,7 +200,7 @@ namespace engine {
 
     }
 
-    void Image::generate_mipmaps (const vk::CommandBuffer& command_buffer) {
+    void TexImage::generate_mipmaps (const vk::CommandBuffer& command_buffer) {
 
         auto barrier = vk::ImageMemoryBarrier {
             .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
@@ -285,7 +281,7 @@ namespace engine {
 
     }
 
-    void Image::set_data(std::span<std::byte> pixels) {
+    void TexImage::set_data(std::span<std::byte> pixels) {
 
         auto staging = Buffer(size, vk::BufferUsageFlagBits::eTransferSrc);
         staging.write(pixels.data());
@@ -324,16 +320,28 @@ namespace engine {
 
     }
 
-    DepthImage::DepthImage (std::size_t width, std::size_t height) : width(width), height(height) {
+    ColorImage::ColorImage (std::size_t width, std::size_t height) : Image(width, height) {
 
-        std::tie(handle, allocation) = create_image(width, height, 1, format, vk::ImageUsageFlagBits::eDepthStencilAttachment);
-        view = create_view(handle, format, vk::ImageAspectFlagBits::eDepth);
+        using enum vk::ImageUsageFlagBits;
+        using enum vk::SampleCountFlagBits;
+
+        auto format = device->get_format().format;
+        auto sample_count = get_max_sample_count(device->get_gpu());
+
+        std::tie(handle, allocation) = create_image(width, height, 1, sample_count, format, eTransientAttachment | eColorAttachment);
+        view = create_view(handle, format, vk::ImageAspectFlagBits::eColor);
 
     }
 
-    DepthImage::~DepthImage ( ) {
+    DepthImage::DepthImage (std::size_t width, std::size_t height) : Image(width, height) {
 
-        vmaDestroyImage(device->get_allocator(), VkImage(handle), allocation);
+        using enum vk::ImageUsageFlagBits;
+        using enum vk::SampleCountFlagBits;
+
+        auto sample_count = get_max_sample_count(device->get_gpu());
+
+        std::tie(handle, allocation) = create_image(width, height, 1, sample_count, format, eDepthStencilAttachment);
+        view = create_view(handle, format, vk::ImageAspectFlagBits::eDepth);
 
     }
 

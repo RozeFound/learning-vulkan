@@ -19,7 +19,7 @@ namespace engine {
 
         std::shared_ptr<Device> device = Device::get();
 
-        std::unique_ptr<Image> font_texture;
+        std::unique_ptr<TexImage> font_texture;
         std::vector<std::unique_ptr<Buffer>> vertex_buffers;
         std::vector<std::unique_ptr<Buffer>> index_buffers;
 

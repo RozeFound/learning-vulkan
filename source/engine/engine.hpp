@@ -24,7 +24,7 @@ namespace engine {
         std::unique_ptr<UI> ui;
 
         std::unique_ptr<Model> model;
-        std::unique_ptr<Image> texture;
+        std::unique_ptr<TexImage> texture;
 
         std::unique_ptr<SwapChain> swapchain;
 

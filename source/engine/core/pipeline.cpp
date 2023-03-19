@@ -59,7 +59,8 @@ namespace engine {
 
         auto multisampling = vk::PipelineMultisampleStateCreateInfo {
             .flags = vk::PipelineMultisampleStateCreateFlags(),
-            .sampleShadingEnable = VK_FALSE,
+            .rasterizationSamples = get_max_sample_count(device->get_gpu()),
+            .sampleShadingEnable = VK_TRUE
         };
 
         auto depth_stencil = vk::PipelineDepthStencilStateCreateInfo {
@@ -176,9 +177,11 @@ namespace engine {
             .lineWidth = 1.f
         };
 
+        // Multisampled text is a bit too much btw
         auto multisampling = vk::PipelineMultisampleStateCreateInfo {
             .flags = vk::PipelineMultisampleStateCreateFlags(),
-            .sampleShadingEnable = VK_FALSE,
+            .rasterizationSamples = get_max_sample_count(device->get_gpu()),
+            .sampleShadingEnable = VK_FALSE
         };
 
         auto depth_stencil = vk::PipelineDepthStencilStateCreateInfo {
