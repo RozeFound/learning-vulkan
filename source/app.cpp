@@ -1,4 +1,5 @@
 #include <memory>
+#include <ranges>
 
 #include <imgui.h>
 
@@ -47,19 +48,26 @@ GLFWwindow* App::create_window (std::size_t width, std::size_t height, std::stri
 
 void App::on_ui_update ( ) {
 
+    // ImGui::ShowDemoWindow();
+
     ImGuiIO& io = ImGui::GetIO();
 
-    static float min_fps = 0;
-    static float max_fps = 0;
+    static float min_fps = 0, max_fps = 0;
+    static auto frame_times = std::array<float, 100>();
 
     min_fps = std::min(min_fps, io.Framerate);
     max_fps = std::max(max_fps, io.Framerate);
 
+    frame_times.back() = 1000.0f / io.Framerate;
+
     ImGui::Begin("Performance", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Text("Frametime %.3f/ms", 1000.0f / io.Framerate);
+    ImGui::Text("Frametime %.3f/ms", frame_times.back());
+    ImGui::PlotLines("", frame_times.data(), frame_times.size());
     ImGui::Text("FPS %.1f/s, min %.1f/s, max %.1f/s", io.Framerate, min_fps, max_fps);
     ImGui::End();
 
+    std::ranges::rotate(frame_times, frame_times.begin() + 1);
+        
 }
 
 void App::run ( ) {
