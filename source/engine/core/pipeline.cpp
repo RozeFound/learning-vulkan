@@ -171,7 +171,7 @@ namespace engine {
             .format = device->get_format().format,
             .samples = sample_count,
             .loadOp = vk::AttachmentLoadOp::eClear,
-            .storeOp = vk::AttachmentStoreOp::eStore,
+            .storeOp = vk::AttachmentStoreOp::eDontCare,
             .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
             .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
             .initialLayout = vk::ImageLayout::eUndefined,
