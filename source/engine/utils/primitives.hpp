@@ -39,7 +39,7 @@ namespace engine {
 
         static auto get_attribute_descriptions ( ) {
 
-            auto descriptions = std::array {
+            auto descriptions = std::vector {
                 vk::VertexInputAttributeDescription {
                     .location = 0,
                     .binding = 0,
@@ -81,7 +81,7 @@ namespace engine {
 
         static auto get_attribute_descriptions ( ) {
 
-            auto descriptions = std::array {
+            auto descriptions = std::vector  {
                 vk::VertexInputAttributeDescription {
                     .location = 0,
                     .binding = 0,

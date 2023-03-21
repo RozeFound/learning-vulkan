@@ -13,8 +13,8 @@ namespace engine {
 
     class Engine {
 
-        uint32_t max_frames_in_flight, frame_number = 0;
-        const bool is_imgui_enabled = true;
+        uint32_t max_frames_in_flight, current_frame = 0;
+        constexpr static bool is_imgui_enabled = true;
 
         vk::DebugUtilsMessengerEXT debug_messenger;
         vk::DispatchLoaderDynamic dldi;
@@ -29,6 +29,7 @@ namespace engine {
         std::unique_ptr<SwapChain> swapchain;
 
         vk::Pipeline pipeline;
+        vk::RenderPass render_pass;
         vk::PipelineLayout pipeline_layout;
 
         vk::Queue graphics_queue;

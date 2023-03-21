@@ -63,8 +63,14 @@ namespace engine {
 
     void SwapChain::make_frames ( ) {
 
-        depth_buffer = std::make_shared<DepthImage>(extent.width, extent.height);
-        color_buffer = std::make_shared<ColorImage>(extent.width, extent.height);
+        using enum vk::ImageUsageFlagBits;
+        using enum vk::SampleCountFlagBits;
+
+        auto format = device->get_format().format;
+        auto sample_count = get_max_sample_count(device->get_gpu());
+
+        depth_buffer = std::make_shared<Image>(extent.width, extent.height, Image::get_depth_format(), eDepthStencilAttachment, 1, sample_count);
+        color_buffer = std::make_shared<Image>(extent.width, extent.height, format, eTransientAttachment | eColorAttachment, 1, sample_count);
 
         auto images = device->get_handle().getSwapchainImagesKHR(handle.get());
         frames.resize(images.size());
@@ -72,10 +78,28 @@ namespace engine {
         for (size_t i = 0; i < images.size(); i++) {
 
 			frames.at(i).image = images.at(i);
-			frames.at(i).view = create_view(images.at(i), device->get_format().format, vk::ImageAspectFlagBits::eColor);
+			frames.at(i).view = Image::create_view(images.at(i), format, vk::ImageAspectFlagBits::eColor);
 
             frames.at(i).depth_buffer = depth_buffer;
             frames.at(i).color_buffer = color_buffer;
+
+            auto attachments = std::array { color_buffer->get_view(), frames.at(i).view.get(), depth_buffer->get_view() };
+
+            auto create_info = vk::FramebufferCreateInfo {
+                .flags = vk::FramebufferCreateFlags(),
+                .renderPass = render_pass,
+                .attachmentCount = to_u32(attachments.size()),
+                .pAttachments = attachments.data(),
+                .width = extent.width,
+                .height = extent.height,
+                .layers = 1
+            };
+
+            try {
+                frames.at(i).buffer = device->get_handle().createFramebufferUnique(create_info);
+            } catch (vk::SystemError err) {
+                loge("Failed to create Framebuffer");
+            }
 
 		};
 

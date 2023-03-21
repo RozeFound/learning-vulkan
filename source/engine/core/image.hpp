@@ -14,6 +14,7 @@ namespace engine {
         protected:
 
         std::size_t width, height;
+        uint32_t mip_levels;
 
         std::shared_ptr<Device> device = Device::get();
 
@@ -21,11 +22,24 @@ namespace engine {
         vk::UniqueImageView view;
         VmaAllocation allocation;
 
+        vk::Format format;
+        vk::ImageUsageFlags usage;
+        vk::SampleCountFlagBits sample_count;
+
+        virtual void create_handle ( );
+
         public:
 
         Image ( ) = default;
-        Image (std::size_t width, std::size_t height) : width(width), height(height) { }
+        Image (std::size_t width, std::size_t height, vk::Format format, vk::ImageUsageFlags usage, 
+        uint32_t mip_levels, vk::SampleCountFlagBits sample_count) :
+            width(width), height(height), format(format), usage(usage), 
+            mip_levels(mip_levels), sample_count(sample_count) { create_handle(); }
         ~Image ( ) { vmaDestroyImage(device->get_allocator(), VkImage(handle), allocation); };
+
+        static vk::UniqueImageView create_view (vk::Image& image, vk::Format format, vk::ImageAspectFlags flags, uint32_t mip_levels = 1);
+
+        static vk::Format get_depth_format ( );
 
         constexpr const vk::Image& get_handle ( ) const { return handle; }
         constexpr const vk::ImageView& get_view ( ) const { return view.get(); }
@@ -38,16 +52,13 @@ namespace engine {
     class TexImage : public Image {
 
         std::size_t size;
-        uint32_t mip_levels;
 
         vk::UniqueSampler sampler;
 
         vk::UniqueDescriptorPool descriptor_pool;
         vk::DescriptorSet descriptor_set;
 
-        vk::Format format = vk::Format::eR8G8B8A8Srgb;
-
-        void create_handle ( );
+        void create_handle ( ) override;
         void create_sampler ( );
         void create_descriptor_set ( );
         void generate_mipmaps (const vk::CommandBuffer& command_buffer);
@@ -63,27 +74,5 @@ namespace engine {
         constexpr const vk::DescriptorSet& get_descriptor_set ( ) const { return descriptor_set; }
 
     };
-
-    class ColorImage : public Image {
-
-        public:
-
-        ColorImage (std::size_t width, std::size_t height);
-
-    };
-
-    class DepthImage : public Image {
-
-        vk::Format format = find_supported_format ( );
-
-        public:
-
-        DepthImage (std::size_t width, std::size_t height);
-
-        static vk::Format find_supported_format ( );
-
-    };
-
-    vk::UniqueImageView create_view (vk::Image& image, vk::Format format, vk::ImageAspectFlags flags, uint32_t mip_levels = 1);
 
 }

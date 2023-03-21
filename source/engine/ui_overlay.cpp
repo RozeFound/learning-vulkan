@@ -36,9 +36,22 @@ namespace engine {
             .size = sizeof(glm::vec2) * 2
         };
 
+        auto sample_count = get_max_sample_count(device->get_gpu());
         pipeline_layout = create_pipeline_layout(&descriptor_set_layout, &push_constant_range);
-
-        pipeline = create_ui_pipeline(pipeline_layout);
+        pipeline = create_pipeline({
+            .binding_description = ImVertex::get_binding_description(),
+            .attribute_descriptions = ImVertex::get_attribute_descriptions(),
+            .rasterization_info = create_rasterization_info(vk::CullModeFlagBits::eNone),
+            .multisampling_info = create_multisampling_info(sample_count, false),
+            .depth_stencil_info = create_depth_stencil_info(false, false),
+            .color_blend_attachment = create_color_blend_attachment(true,
+                { vk::BlendFactor::eSrcAlpha,  vk::BlendFactor::eOneMinusSrcAlpha }, vk::BlendOp::eAdd,
+                { vk::BlendFactor::eOne,  vk::BlendFactor::eOneMinusSrcAlpha }, vk::BlendOp::eAdd
+            ),
+            .layout = pipeline_layout,
+            .render_pass = render_pass,
+            .shader_path = "shaders/imgui"
+        });
 
         ImGui::CreateContext();
         ImGui::StyleColorsDark();

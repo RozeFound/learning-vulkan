@@ -4,6 +4,8 @@
 #include <vector>
 #include <filesystem>
 
+#include "../utils/logging.hpp"
+
 namespace engine {
 
     class Shader {
@@ -19,9 +21,11 @@ namespace engine {
 
         public:
 
-        Shader (std::filesystem::path path); 
+        Shader (std::filesystem::path path);
 
-        std::vector<vk::PipelineShaderStageCreateInfo> get_stage_info ( );
+        constexpr const auto get_stage_info ( ) const {
+            return std::array { vertex_stage, fragment_stage };
+        }
 
     };
 

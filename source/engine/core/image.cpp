@@ -13,11 +13,7 @@
 
 namespace engine {
 
-    auto create_image (std::size_t width, std::size_t height, uint32_t mip_levels,
-        vk::SampleCountFlagBits sample_count, vk::Format format, vk::ImageUsageFlags usage) {
-
-        auto device = Device::get();
-        vk::Image handle; VmaAllocation allocation;
+    void Image::create_handle ( ) {
         
         auto create_info = vk::ImageCreateInfo {
             .flags = vk::ImageCreateFlags(),
@@ -48,11 +44,15 @@ namespace engine {
             loge("Failed to create Image");
         }
 
-        return std::pair(handle, allocation);
+        auto image_aspect = vk::ImageAspectFlagBits::eColor;
+        if (usage == vk::ImageUsageFlagBits::eDepthStencilAttachment)
+            image_aspect = vk::ImageAspectFlagBits::eDepth;
+
+        view = create_view(handle, format, image_aspect, mip_levels);
 
     }
 
-    vk::UniqueImageView create_view (vk::Image& image, vk::Format format, vk::ImageAspectFlags flags, uint32_t mip_levels) {
+    vk::UniqueImageView Image::create_view (vk::Image& image, vk::Format format, vk::ImageAspectFlags flags, uint32_t mip_levels) {
 
         auto subres_range = vk::ImageSubresourceRange {
             .aspectMask = flags,
@@ -74,6 +74,22 @@ namespace engine {
         return Device::get()->get_handle().createImageViewUnique(create_info);
 
     }
+
+    vk::Format Image::get_depth_format () {
+
+        auto candidates = { vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint };
+
+        for (const auto& format : candidates) {
+
+            auto properties = Device::get()->get_gpu().getFormatProperties(format);
+
+            if (properties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
+                return format;
+        }
+
+        throw std::runtime_error("Failed to retrieve Depth Format");
+
+    }
     
     TexImage::TexImage (std::string_view path) {
 
@@ -92,11 +108,13 @@ namespace engine {
 
     }
 
-    TexImage::TexImage (std::size_t width, std::size_t height, std::span<std::byte> pixels) :
-        Image(width, height) { 
+    TexImage::TexImage (std::size_t width, std::size_t height, std::span<std::byte> pixels) { 
 
-        size = pixels.size();
+        this->width = width;
+        this->height = height;
+
         create_handle();
+        size = pixels.size();
         set_data(pixels);
 
     };
@@ -105,11 +123,13 @@ namespace engine {
 
         mip_levels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
 
-        using enum vk::ImageUsageFlagBits;
-        using enum vk::SampleCountFlagBits;
+        format = vk::Format::eR8G8B8A8Srgb;
+        sample_count = vk::SampleCountFlagBits::e1;
 
-        std::tie(handle, allocation) = create_image(width, height, mip_levels, e1, format, eTransferSrc | eTransferDst | eSampled);
-        view = create_view(handle, format, vk::ImageAspectFlagBits::eColor, mip_levels);
+        using enum vk::ImageUsageFlagBits;
+        usage = eTransferSrc | eTransferDst | eSampled;
+
+        Image::create_handle();
 
         create_sampler();
         create_descriptor_set();
@@ -317,47 +337,6 @@ namespace engine {
         generate_mipmaps(command_buffer);
 
         transient_buffer.submit();
-
-    }
-
-    ColorImage::ColorImage (std::size_t width, std::size_t height) : Image(width, height) {
-
-        using enum vk::ImageUsageFlagBits;
-        using enum vk::SampleCountFlagBits;
-
-        auto format = device->get_format().format;
-        auto sample_count = get_max_sample_count(device->get_gpu());
-
-        std::tie(handle, allocation) = create_image(width, height, 1, sample_count, format, eTransientAttachment | eColorAttachment);
-        view = create_view(handle, format, vk::ImageAspectFlagBits::eColor);
-
-    }
-
-    DepthImage::DepthImage (std::size_t width, std::size_t height) : Image(width, height) {
-
-        using enum vk::ImageUsageFlagBits;
-        using enum vk::SampleCountFlagBits;
-
-        auto sample_count = get_max_sample_count(device->get_gpu());
-
-        std::tie(handle, allocation) = create_image(width, height, 1, sample_count, format, eDepthStencilAttachment);
-        view = create_view(handle, format, vk::ImageAspectFlagBits::eDepth);
-
-    }
-
-    vk::Format DepthImage::find_supported_format () {
-
-        auto candidates = { vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint };
-
-        for (const auto& format : candidates) {
-
-            auto properties = Device::get()->get_gpu().getFormatProperties(format);
-
-            if (properties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
-                return format;
-        }
-
-        throw std::runtime_error("Failed to retrieve Depth Format");
 
     }
 

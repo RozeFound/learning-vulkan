@@ -41,7 +41,8 @@ namespace engine {
         graphics_queue = device->get_handle().getQueue(indices.graphics_family.value(), 0);
         present_queue = device->get_handle().getQueue(indices.present_family.value(), 0);
 
-        swapchain = std::make_unique<SwapChain>();
+        render_pass = create_render_pass();
+        swapchain = std::make_unique<SwapChain>(render_pass);
         max_frames_in_flight = swapchain->get_frames().size();
 
         // Layouts
@@ -53,13 +54,19 @@ namespace engine {
             .size = sizeof(UniformBufferObject)
         };
 
+        auto sample_count = get_max_sample_count(device->get_gpu());
         pipeline_layout = create_pipeline_layout(&descriptor_set_layout, &push_constant_range);
+        pipeline = create_pipeline({
+            .multisampling_info = create_multisampling_info(sample_count, true),
+            .layout = pipeline_layout,
+            .render_pass = render_pass,
+            .shader_path = "shaders/basic",
+        });
 
         make_command_pool();
         swapchain->make_commandbuffers(command_pool);
-        pipeline = create_pipeline(pipeline_layout);
 
-        if (is_imgui_enabled) ui = std::make_unique<UI>(max_frames_in_flight);
+        if (is_imgui_enabled) ui = std::make_unique<UI>(max_frames_in_flight, render_pass);
 
         texture = std::make_unique<TexImage>("textures/viking_room.png");
         model = std::make_unique<Model>("models/viking_room.obj");
@@ -81,6 +88,7 @@ namespace engine {
         device->get_handle().destroyPipelineLayout(pipeline_layout);
         device->get_handle().destroyDescriptorSetLayout(descriptor_set_layout);
         device->get_handle().destroyPipeline(pipeline);
+        device->get_handle().destroyRenderPass(render_pass);
 
     }
 
@@ -97,7 +105,7 @@ namespace engine {
         device->get_handle().waitIdle();
         swapchain->create_handle();
 
-        frame_number = 0;
+        current_frame = 0;
 
     }
 
@@ -160,49 +168,21 @@ namespace engine {
             loge("Failed to begin command record");
         }
 
-        insert_image_memory_barrier(command_buffer, frame.image, vk::ImageAspectFlagBits::eColor, 
-            { vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eColorAttachmentOutput },
-            { vk::AccessFlagBits::eNone, vk::AccessFlagBits::eColorAttachmentWrite },
-            { vk::ImageLayout::eUndefined,  vk::ImageLayout::eColorAttachmentOptimal }
-        );
-
-        insert_image_memory_barrier(command_buffer, frame.depth_buffer->get_handle(), vk::ImageAspectFlagBits::eDepth, 
-            { vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
-                vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eLateFragmentTests },
-            { vk::AccessFlagBits::eNone, vk::AccessFlagBits::eDepthStencilAttachmentWrite },
-            { vk::ImageLayout::eUndefined,  vk::ImageLayout::eDepthStencilAttachmentOptimal }
-        );
-
-        auto color_attachment_info = vk::RenderingAttachmentInfoKHR {
-            .imageView = frame.color_buffer->get_view(),
-            .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
-            .resolveMode = vk::ResolveModeFlagBits::eAverage,
-            .resolveImageView = frame.view.get(),
-            .resolveImageLayout = vk::ImageLayout::eColorAttachmentOptimal,
-            .loadOp = vk::AttachmentLoadOp::eClear,
-            .storeOp = vk::AttachmentStoreOp::eStore,
-            .clearValue = vk::ClearValue { std::array { .1f, .1f, .1f, 1.f } }
+        auto clear_values = std::array {
+            vk::ClearValue { std::array { .1f, .1f, .1f, 1.f } },
+            vk::ClearValue { },
+            vk::ClearValue { .depthStencil = { 1.f, 0 } },
         };
 
-        auto depth_attachment_info = vk::RenderingAttachmentInfoKHR {
-            .imageView = frame.depth_buffer->get_view(),
-            .imageLayout = vk::ImageLayout::eDepthAttachmentOptimal,
-            .resolveMode = vk::ResolveModeFlagBits::eNone,
-            .loadOp = vk::AttachmentLoadOp::eClear,
-            .storeOp = vk::AttachmentStoreOp::eDontCare,
-            .clearValue = vk::ClearValue { .depthStencil = { 1.f, 0 } }
+        auto renderpass_info = vk::RenderPassBeginInfo {
+            .renderPass = render_pass,
+            .framebuffer = frame.buffer.get(),
+            .renderArea = {{0, 0}, swapchain->get_extent()},
+            .clearValueCount = to_u32(clear_values.size()),
+            .pClearValues = clear_values.data()
         };
 
-        auto rendering_info = vk::RenderingInfo {
-            .flags = vk::RenderingFlags(),
-            .renderArea = vk::Rect2D { .extent = swapchain->get_extent() },
-            .layerCount = 1,
-            .colorAttachmentCount = 1,
-            .pColorAttachments = &color_attachment_info,
-            .pDepthAttachment = &depth_attachment_info
-        };
-
-        command_buffer.beginRenderingKHR(rendering_info, dldi);
+        command_buffer.beginRenderPass(renderpass_info, vk::SubpassContents::eInline);
 
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, 1, &texture->get_descriptor_set(), 0, nullptr);
@@ -230,13 +210,7 @@ namespace engine {
             UI::end_frame();
         }
 
-        command_buffer.endRenderingKHR(dldi);
-
-        insert_image_memory_barrier(command_buffer, frame.image, vk::ImageAspectFlagBits::eColor, 
-            { vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eBottomOfPipe },
-            { vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eNone },
-            { vk::ImageLayout::eColorAttachmentOptimal,  vk::ImageLayout::ePresentSrcKHR }
-        );
+        command_buffer.endRenderPass();
 
         try {
             command_buffer.end();
@@ -253,7 +227,7 @@ namespace engine {
         if (is_framebuffer_resized) return remake_swapchain();
 
         constexpr auto timeout = std::numeric_limits<uint64_t>::max();
-        const auto& frame = swapchain->get_frames().at(frame_number);
+        const auto& frame = swapchain->get_frames().at(current_frame);
 
         if (device->get_handle().waitForFences(frame.in_flight.get(), VK_TRUE, timeout) != vk::Result::eSuccess)
             logw("Something goes wrong when waiting on fences");
@@ -263,7 +237,7 @@ namespace engine {
 
         frame.commands.reset();
 
-        record_draw_commands(frame_number);
+        record_draw_commands(current_frame);
         
         vk::PipelineStageFlags wait_stages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
 
@@ -294,7 +268,7 @@ namespace engine {
         if (present_queue.presentKHR(present_info) != vk::Result::eSuccess)
             logw("Failed to present image");
 
-        frame_number = (frame_number + 1) % max_frames_in_flight;
+        current_frame = (current_frame + 1) % max_frames_in_flight;
     }
 
 }

@@ -52,12 +52,6 @@ namespace engine {
 
     }
 
-    std::vector<vk::PipelineShaderStageCreateInfo> Shader::get_stage_info ( ) {
-
-        return { vertex_stage, fragment_stage };
-
-    }
-
     std::vector<std::byte> Shader::read (std::filesystem::path path) {
 
         auto file = std::ifstream(path, std::ios::ate | std::ios::binary);

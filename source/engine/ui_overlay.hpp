@@ -16,6 +16,7 @@ namespace engine {
         vk::Pipeline pipeline;
         vk::PipelineLayout pipeline_layout;
         vk::DescriptorSetLayout descriptor_set_layout;
+        vk::RenderPass render_pass;
 
         std::shared_ptr<Device> device = Device::get();
 
@@ -32,7 +33,8 @@ namespace engine {
 
         public:
 
-        UI (uint32_t image_count) : image_count(image_count) { create_handle(); }
+        UI (uint32_t image_count, vk::RenderPass render_pass) 
+            : image_count(image_count), render_pass(render_pass) { create_handle(); }
         ~UI ( );
 
         static ScopedTimer add_perf_counter (std::source_location = std::source_location::current());

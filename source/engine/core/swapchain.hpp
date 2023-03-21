@@ -16,9 +16,10 @@ namespace engine {
             vk::Image image;
             vk::UniqueImageView view;
             vk::CommandBuffer commands;
+            vk::UniqueFramebuffer buffer;
 
-            std::shared_ptr<DepthImage> depth_buffer;
-            std::shared_ptr<ColorImage> color_buffer;
+            std::shared_ptr<Image> depth_buffer;
+            std::shared_ptr<Image> color_buffer;
 
             vk::UniqueSemaphore image_available;
             vk::UniqueSemaphore render_finished;
@@ -26,12 +27,12 @@ namespace engine {
 
         };
 
-        std::shared_ptr<DepthImage> depth_buffer;
-        std::shared_ptr<ColorImage> color_buffer;
+        std::shared_ptr<Image> depth_buffer;
+        std::shared_ptr<Image> color_buffer;
 
         vk::UniqueSwapchainKHR handle;
         std::vector<Frame> frames;
-        vk::RenderPass renderpass;
+        vk::RenderPass render_pass;
         vk::Extent2D extent;
 
         std::shared_ptr<Device> device = Device::get();
@@ -40,7 +41,7 @@ namespace engine {
 
         public:
 
-        SwapChain () { create_handle(); }
+        SwapChain (vk::RenderPass render_pass) : render_pass(render_pass) { create_handle(); }
 
         void create_handle ( );
 
