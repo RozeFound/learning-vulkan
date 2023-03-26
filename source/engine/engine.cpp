@@ -34,12 +34,13 @@ namespace engine {
         device = std::make_shared<Device>(window);
         Device::set_static_instance(device);
 
+        auto ec = glz::read_file(settings, "settings.json");
+
         dldi = vk::DispatchLoaderDynamic(device->get_instance(), vkGetInstanceProcAddr);
         if constexpr (debug) debug_messenger = make_debug_messenger(device->get_instance(), dldi);
 
         auto indices = get_queue_family_indices(device->get_gpu(), device->get_surface());
-        graphics_queue = device->get_handle().getQueue(indices.graphics_family.value(), 0);
-        present_queue = device->get_handle().getQueue(indices.present_family.value(), 0);
+        queue = device->get_handle().getQueue(indices.graphics_family.value(), 0);
 
         render_pass = create_render_pass();
         swapchain = std::make_unique<SwapChain>(render_pass);
@@ -64,16 +65,15 @@ namespace engine {
         });
 
         make_command_pool();
-        swapchain->make_commandbuffers(command_pool);
+        make_command_buffers();
 
         if (is_imgui_enabled) ui = std::make_unique<UI>(max_frames_in_flight, render_pass);
-
-        texture = std::make_unique<TexImage>("textures/viking_room.png");
-        model = std::make_unique<Model>("models/viking_room.obj");
 
     }
 
     Engine::~Engine ( ) {
+
+        auto ec = glz::write_file(settings, "settings.json");
 
         device->get_handle().waitIdle();
 
@@ -92,20 +92,20 @@ namespace engine {
 
     }
 
-    void Engine::remake_swapchain ( ) {
+    void Engine::apply_settings ( ) {
 
-        SCOPED_PERF_LOG;
+        if (settings.vsync != swapchain->vsync_enabled) {
+            swapchain->vsync_enabled = settings.vsync;
+            device->get_handle().waitIdle();
+            swapchain->create_handle();
+            current_frame = 0;
+        }
 
-        is_framebuffer_resized = false;
-        
-        auto new_extent = device->get_extent();
-        auto old_extent = swapchain->get_extent();
+        fps_limiter.is_enabled = settings.fps_limit == -1 ? false : true;
+        if (settings.vsync) fps_limiter.is_enabled = false;
 
-        if (new_extent == old_extent) return;
-        device->get_handle().waitIdle();
-        swapchain->create_handle();
-
-        current_frame = 0;
+        if (fps_limiter.is_enabled)
+            fps_limiter.set_target(settings.fps_limit);
 
     }
 
@@ -123,6 +123,27 @@ namespace engine {
             logi("Successfully created Command Pool");
         } catch (vk::SystemError err) {
             loge("Failed to create Command Pool");
+        }
+
+    }
+
+    void Engine::make_command_buffers ( ) {
+
+        auto& frames = swapchain->get_frames();
+        
+        auto allocate_info = vk::CommandBufferAllocateInfo {
+            .commandPool = command_pool,
+            .level = vk::CommandBufferLevel::ePrimary,
+            .commandBufferCount = to_u32(frames.size())
+        };
+
+        try {
+            auto buffers = device->get_handle().allocateCommandBuffers(allocate_info);
+            for (std::size_t i = 0; i < frames.size(); i++)
+                frames.at(i).commands = buffers.at(i);
+            logi("Allocated Command Buffers");
+        } catch (vk::SystemError err) {
+            loge("Failed to allocate Command Buffers");
         }
 
     }
@@ -148,22 +169,16 @@ namespace engine {
 
         frame.commands.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(ubo), &ubo);
 
-        auto offsets = std::array<vk::DeviceSize, 1> { }; 
-        frame.commands.bindVertexBuffers(0, 1, &model->get_vertex(), offsets.data());
-        frame.commands.bindIndexBuffer(model->get_index(), 0, vk::IndexType::eUint16);
-        frame.commands.drawIndexed(model->get_indices_count(), 1, 0, 0, 0);
-
     }
 
-    void Engine::record_draw_commands (uint32_t index) {
+    void Engine::record_draw_commands (uint32_t index, std::shared_ptr<Object> object) {
 
         SCOPED_PERF_LOG;
 
-        auto& frame = swapchain->get_frames().at(index);
-        auto& command_buffer = frame.commands;
+        const auto& frame = swapchain->get_frames().at(index);
 
         try {
-            command_buffer.begin(vk::CommandBufferBeginInfo());
+            frame.commands.begin(vk::CommandBufferBeginInfo());
         } catch (vk::SystemError err) {
             loge("Failed to begin command record");
         }
@@ -182,10 +197,10 @@ namespace engine {
             .pClearValues = clear_values.data()
         };
 
-        command_buffer.beginRenderPass(renderpass_info, vk::SubpassContents::eInline);
+        frame.commands.beginRenderPass(renderpass_info, vk::SubpassContents::eInline);
 
-        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
-        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, 1, &texture->get_descriptor_set(), 0, nullptr);
+        frame.commands.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+        frame.commands.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, 1, &object->texture.get_descriptor_set(), 0, nullptr);
 
         auto viewport = vk::Viewport {
             .width = static_cast<float>(swapchain->get_extent().width),
@@ -194,50 +209,62 @@ namespace engine {
             .maxDepth = 1.f
         };
 
-        command_buffer.setViewport(0, 1, &viewport);
+        frame.commands.setViewport(0, 1, &viewport);
 
         auto scissor = vk::Rect2D {
             .extent = swapchain->get_extent()
         };
 
-        command_buffer.setScissor(0, 1, &scissor);
+        frame.commands.setScissor(0, 1, &scissor);
 
         prepare_frame(index);
 
-        if (is_imgui_enabled && on_ui_update) {
-            UI::new_frame(); on_ui_update();
-            ui->draw(command_buffer, index);
+        auto offsets = std::array<vk::DeviceSize, 1> { }; 
+        frame.commands.bindVertexBuffers(0, 1, &object->model.get_vertex(), offsets.data());
+        frame.commands.bindIndexBuffer(object->model.get_index(), 0, vk::IndexType::eUint16);
+        frame.commands.drawIndexed(object->model.get_indices_count(), 1, 0, 0, 0);
+
+        if (is_imgui_enabled && settings.gui_visible) {
+            UI::new_frame();
+            if (ui_callback) ui_callback();
+            ui->draw(frame.commands, index);
             UI::end_frame();
         }
 
-        command_buffer.endRenderPass();
+        frame.commands.endRenderPass();
 
         try {
-            command_buffer.end();
+            frame.commands.end();
         } catch (vk::SystemError err) {
             loge("Failed to record command buffer");
         }
 
     }
 
-    void Engine::draw () {
+    void Engine::draw (std::shared_ptr<Object> object) {
+
+        fps_limiter.delay();
 
         SCOPED_PERF_LOG;
 
-        if (is_framebuffer_resized) return remake_swapchain();
+        if (is_framebuffer_resized) {
+            swapchain->resize_if_needed();
+            is_framebuffer_resized = false;
+            current_frame = 0;
+        }
+
+        if (is_settings_changed) {
+            apply_settings();
+            is_settings_changed = false;
+        }
 
         constexpr auto timeout = std::numeric_limits<uint64_t>::max();
-        const auto& frame = swapchain->get_frames().at(current_frame);
-
-        if (device->get_handle().waitForFences(frame.in_flight.get(), VK_TRUE, timeout) != vk::Result::eSuccess)
-            logw("Something goes wrong when waiting on fences");
-        device->get_handle().resetFences(frame.in_flight.get());
-
-        auto image_result = device->get_handle().acquireNextImageKHR(swapchain->get_handle(), timeout, frame.image_available.get());
+        auto& frame = swapchain->get_frames().at(current_frame);
+        auto image_index = swapchain->acquire_image(current_frame);
+        frame.index = image_index;
 
         frame.commands.reset();
-
-        record_draw_commands(current_frame);
+        record_draw_commands(current_frame, object);
         
         vk::PipelineStageFlags wait_stages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
 
@@ -252,23 +279,16 @@ namespace engine {
         };
 
         try {
-            graphics_queue.submit(submit_info, frame.in_flight.get());
+            queue.submit(submit_info, frame.in_flight.get());
         } catch (vk::SystemError err) {
             loge("Failed to submit draw command buffer");
         }
 
-        auto present_info = vk::PresentInfoKHR {
-            .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &frame.render_finished.get(),
-            .swapchainCount = 1,
-            .pSwapchains = &swapchain->get_handle(),
-            .pImageIndices = &image_result.value
-        };
-
-        if (present_queue.presentKHR(present_info) != vk::Result::eSuccess)
-            logw("Failed to present image");
+        if (!swapchain->present_image(current_frame))
+            { current_frame = 0; return; }
 
         current_frame = (current_frame + 1) % max_frames_in_flight;
+
     }
 
 }

@@ -81,7 +81,7 @@ namespace engine {
         std::size_t size = width * height * 4;
 
         auto data = std::vector<std::byte>(reinterpret_cast<std::byte*>(pixels), reinterpret_cast<std::byte*>(pixels) + size);
-        font_texture = std::make_unique<TexImage>(width, height, data);
+        font_texture = std::make_unique<Texture>(width, height, data);
 
     }
 
@@ -132,7 +132,7 @@ namespace engine {
 
     }
 
-    void UI::draw (vk::CommandBuffer& command_buffer, uint32_t index) {
+    void UI::draw (const vk::CommandBuffer& command_buffer, uint32_t index) {
 
         SCOPED_PERF_LOG;
 

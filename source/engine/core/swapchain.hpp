@@ -13,6 +13,7 @@ namespace engine {
 
         struct Frame {
 
+            uint32_t index;
             vk::Image image;
             vk::UniqueImageView view;
             vk::CommandBuffer commands;
@@ -30,6 +31,7 @@ namespace engine {
         std::shared_ptr<Image> depth_buffer;
         std::shared_ptr<Image> color_buffer;
 
+        vk::Queue queue;
         vk::UniqueSwapchainKHR handle;
         std::vector<Frame> frames;
         vk::RenderPass render_pass;
@@ -41,11 +43,19 @@ namespace engine {
 
         public:
 
-        SwapChain (vk::RenderPass render_pass) : render_pass(render_pass) { create_handle(); }
+        bool vsync_enabled = false;
+
+        uint32_t acquire_image (uint32_t index);
+        bool present_image (uint32_t index);
+        bool resize_if_needed ( );
+
+        SwapChain (vk::RenderPass render_pass) : render_pass(render_pass) { 
+            auto indices = get_queue_family_indices(device->get_gpu(), device->get_surface());
+            queue = device->get_handle().getQueue(indices.present_family.value(), 0);
+            create_handle();
+        }
 
         void create_handle ( );
-
-        void make_commandbuffers (vk::CommandPool&);
 
         constexpr const vk::SwapchainKHR& get_handle ( ) const { return handle.get(); }
         constexpr std::vector<Frame>& get_frames ( ) { return frames; }

@@ -20,7 +20,7 @@ namespace engine {
 
         std::shared_ptr<Device> device = Device::get();
 
-        std::unique_ptr<TexImage> font_texture;
+        std::unique_ptr<Texture> font_texture;
         std::vector<std::unique_ptr<Buffer>> vertex_buffers;
         std::vector<std::unique_ptr<Buffer>> index_buffers;
 
@@ -40,7 +40,7 @@ namespace engine {
         static ScopedTimer add_perf_counter (std::source_location = std::source_location::current());
 
         static void new_frame();
-        void draw (vk::CommandBuffer&, uint32_t index);
+        void draw (const vk::CommandBuffer&, uint32_t index);
         static void end_frame();
 
     };

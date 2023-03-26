@@ -91,7 +91,7 @@ namespace engine {
 
     }
     
-    TexImage::TexImage (std::string_view path) {
+    Texture::Texture (std::string_view path) {
 
         int width, height, channels;
 
@@ -108,7 +108,7 @@ namespace engine {
 
     }
 
-    TexImage::TexImage (std::size_t width, std::size_t height, std::span<std::byte> pixels) { 
+    Texture::Texture (std::size_t width, std::size_t height, std::span<std::byte> pixels) { 
 
         this->width = width;
         this->height = height;
@@ -119,7 +119,7 @@ namespace engine {
 
     };
     
-    void TexImage::create_handle ( ) {
+    void Texture::create_handle ( ) {
 
         mip_levels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
 
@@ -136,7 +136,7 @@ namespace engine {
         
     }
 
-    void TexImage::create_sampler ( ) {
+    void Texture::create_sampler ( ) {
 
         auto properties = device->get_gpu().getProperties();
 
@@ -163,7 +163,7 @@ namespace engine {
 
     }
 
-    void TexImage::create_descriptor_set ( ) {
+    void Texture::create_descriptor_set ( ) {
 
         auto pool_size = vk::DescriptorPoolSize {
             .type = vk::DescriptorType::eCombinedImageSampler,
@@ -220,7 +220,7 @@ namespace engine {
 
     }
 
-    void TexImage::generate_mipmaps (const vk::CommandBuffer& command_buffer) {
+    void Texture::generate_mipmaps (const vk::CommandBuffer& command_buffer) {
 
         auto barrier = vk::ImageMemoryBarrier {
             .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
@@ -301,7 +301,7 @@ namespace engine {
 
     }
 
-    void TexImage::set_data(std::span<std::byte> pixels) {
+    void Texture::set_data(std::span<std::byte> pixels) {
 
         auto staging = Buffer(size, vk::BufferUsageFlagBits::eTransferSrc);
         staging.write(pixels.data());

@@ -10,7 +10,7 @@ namespace engine {
 
         class ScopedTimer {
 
-		std::chrono::time_point<std::chrono::high_resolution_clock> start_time_point;
+		std::chrono::high_resolution_clock::time_point start_time_point;
 
         std::function<void(double)> callback;
 

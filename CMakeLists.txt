@@ -29,7 +29,7 @@ include(cmake/tools.cmake)
 include(cmake/CPM.cmake)
 
 CPMAddPackage("gh:fmtlib/fmt#9.1.0")
-CPMAddPackage("gh:khronosgroup/vulkan-hpp@1.3.240")
+CPMAddPackage("gh:khronosgroup/vulkan-hpp@1.3.244")
 
 CPMAddPackage(
         NAME GLFW
@@ -100,6 +100,8 @@ add_library(vma INTERFACE EXCLUDE_FROM_ALL "${VulkanMemoryAllocator_SOURCE_DIR}/
 target_include_directories(vma INTERFACE $<BUILD_INTERFACE:${VulkanMemoryAllocator_SOURCE_DIR}>/include)
 target_compile_options(vma INTERFACE "-Wno-nullability-completeness")
 
+CPMAddPackage("gh:stephenberry/glaze@1.1.0")
+
 # ---- Add source files ----
 
 # Note: globbing sources is considered bad practice as CMake's generators may not detect new files
@@ -129,6 +131,6 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/models DESTINATION ${PROJECT_BINARY_DIR})
 
 # Link dependencies
 target_link_libraries(${PROJECT_NAME} PRIVATE imgui stb_image tinyobj vma)
-target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt)
+target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt glaze::glaze)
 target_link_libraries(${PROJECT_NAME} PRIVATE vulkan glfw glm)
 

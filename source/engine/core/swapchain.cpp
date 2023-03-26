@@ -20,9 +20,11 @@ namespace engine {
 
         auto present_mode = vk::PresentModeKHR::eFifo;
 
-        for (auto& mode : modes) 
+        if (!vsync_enabled) {
+            for (auto& mode : modes) 
             if (mode == vk::PresentModeKHR::eMailbox)
                 { present_mode = mode; break; }
+        }
 
         auto create_info = vk::SwapchainCreateInfoKHR {
             .flags = vk::SwapchainCreateFlagsKHR(),
@@ -35,7 +37,7 @@ namespace engine {
             .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
             // We'll set sharing mode and queue indices below //
             .preTransform = capabilities.currentTransform,
-            .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
+            .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eInherit,
             .presentMode = present_mode,
             .clipped = VK_TRUE,
             .oldSwapchain = handle.get()
@@ -113,22 +115,55 @@ namespace engine {
 
     }
 
-    void SwapChain::make_commandbuffers (vk::CommandPool& command_pool) {
-        
-        auto allocate_info = vk::CommandBufferAllocateInfo {
-            .commandPool = command_pool,
-            .level = vk::CommandBufferLevel::ePrimary,
-            .commandBufferCount = to_u32(frames.size())
+    uint32_t SwapChain::acquire_image (uint32_t index) {
+
+        constexpr auto timeout = std::numeric_limits<uint64_t>::max();
+        const auto& frame = frames.at(index);
+
+        if (device->get_handle().waitForFences(frame.in_flight.get(), VK_TRUE, timeout) != vk::Result::eSuccess)
+            logw("Something goes wrong when waiting on fences");
+        device->get_handle().resetFences(frame.in_flight.get());
+
+        auto image_result = device->get_handle().acquireNextImageKHR(handle.get(), timeout, frame.image_available.get());
+
+        if (image_result.result == vk::Result::eErrorOutOfDateKHR) resize_if_needed();
+
+        return image_result.value;
+
+    }
+
+    bool SwapChain::present_image(uint32_t index) {
+
+        const auto& frame = frames.at(index);
+
+        auto present_info = vk::PresentInfoKHR {
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &frame.render_finished.get(),
+            .swapchainCount = 1,
+            .pSwapchains = &handle.get(),
+            .pImageIndices = &frame.index
         };
 
         try {
-            auto buffers = device->get_handle().allocateCommandBuffers(allocate_info);
-            for (std::size_t i = 0; i < frames.size(); i++)
-                frames.at(i).commands = buffers.at(i);
-            logi("Allocated Command Buffers");
-        } catch (vk::SystemError err) {
-            loge("Failed to allocate Command Buffers");
+            auto result = queue.presentKHR(present_info);     
+        } catch (vk::OutOfDateKHRError e) {
+            resize_if_needed();
+            return false;
         }
+
+        return true;
+
+    }
+
+    bool SwapChain::resize_if_needed ( ) {
+        
+        auto new_extent = device->get_extent();
+
+        if (new_extent == extent) return false;
+        device->get_handle().waitIdle();
+        create_handle();
+
+        return true;
 
     }
 

@@ -49,7 +49,7 @@ namespace engine {
 
     };
 
-    class TexImage : public Image {
+    class Texture : public Image {
 
         std::size_t size;
 
@@ -65,8 +65,8 @@ namespace engine {
 
         public:
 
-        TexImage (std::string_view path);
-        TexImage (std::size_t width, std::size_t height, std::span<std::byte> pixels);
+        Texture (std::string_view path);
+        Texture (std::size_t width, std::size_t height, std::span<std::byte> pixels);
 
         void set_data(std::span<std::byte> pixels);
 
