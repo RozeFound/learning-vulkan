@@ -8,7 +8,7 @@
 
 namespace engine {
 
-    template<std::size_t size> struct fixed_string {
+    template <std::size_t size> struct fixed_string {
             
         char buffer[size] { };
 
@@ -19,34 +19,34 @@ namespace engine {
         constexpr bool operator<=> (const fixed_string&) const = default;
     };
 
-    template<std::size_t size> fixed_string(const char (&)[size]) -> fixed_string<size>;
+    template <std::size_t size> fixed_string (const char (&)[size]) -> fixed_string<size>;
 
     class ScopedTimer {
 
-		std::chrono::high_resolution_clock::time_point start_time_point;
+        std::chrono::high_resolution_clock::time_point start_time_point;
 
         std::function<void(double)> callback;
 
         public:
 
-		ScopedTimer (std::function<void(double)> callback) : callback(callback) {
+        ScopedTimer (std::function<void(double)> callback) : callback(callback) {
 
-			start_time_point = std::chrono::high_resolution_clock::now();
+            start_time_point = std::chrono::high_resolution_clock::now();
 
-		}
+        }
 
-		~ScopedTimer ( ) {
+        ~ScopedTimer ( ) {
 
-			auto end_time_point = std::chrono::high_resolution_clock::now();
+            auto end_time_point = std::chrono::high_resolution_clock::now();
 
-			auto start = std::chrono::time_point_cast<std::chrono::microseconds>(start_time_point).time_since_epoch().count();
-			auto end = std::chrono::time_point_cast<std::chrono::microseconds>(end_time_point).time_since_epoch().count();
+            auto start = std::chrono::time_point_cast<std::chrono::microseconds>(start_time_point).time_since_epoch().count();
+            auto end = std::chrono::time_point_cast<std::chrono::microseconds>(end_time_point).time_since_epoch().count();
 
             callback((end - start) * 0.001);
 
-		}
+        }
 
-	};
+    };
 
     struct QueueFamilyIndices {
         
@@ -71,5 +71,6 @@ namespace engine {
 
     vk::SampleCountFlagBits get_max_sample_count (const vk::PhysicalDevice& physical_device);
 
-    uint32_t to_u32 (std::size_t value);
+    constexpr uint32_t to_u32 (std::size_t value) { return static_cast<uint32_t>(value); }
+
 }

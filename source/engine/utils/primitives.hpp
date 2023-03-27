@@ -115,7 +115,7 @@ namespace engine {
 
 }
 
-template<> struct std::hash<engine::Vertex> {
+template <> struct std::hash<engine::Vertex> {
     std::size_t operator() (const engine::Vertex& vertex) const noexcept {
 
         auto hash_position = std::hash<glm::vec3>{}(vertex.position);
