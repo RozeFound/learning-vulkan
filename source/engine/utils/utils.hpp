@@ -8,7 +8,20 @@
 
 namespace engine {
 
-        class ScopedTimer {
+    template<std::size_t size> struct fixed_string {
+            
+        char buffer[size] { };
+
+        constexpr fixed_string (const char* string) {
+            for (std::size_t i = 0; i != size; i++) buffer[i] = string[i];
+        }
+        constexpr operator const char* ( ) const { return buffer; }
+        constexpr bool operator<=> (const fixed_string&) const = default;
+    };
+
+    template<std::size_t size> fixed_string(const char (&)[size]) -> fixed_string<size>;
+
+    class ScopedTimer {
 
 		std::chrono::high_resolution_clock::time_point start_time_point;
 

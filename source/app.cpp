@@ -38,9 +38,9 @@ App::App (std::size_t width, std::size_t height, std::string_view title) {
         
         ImGui::Begin("Preferences", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
         if(ImGui::Checkbox("Verical Synchronization", &vsync))
-            graphics_engine->set_vsync(vsync);
+            graphics_engine->set<"vsync">(vsync);
         if(ImGui::InputInt("FPS Limit", &fps, 1, 10, ImGuiInputTextFlags_EnterReturnsTrue))
-            graphics_engine->set_fps_limit(fps);
+            graphics_engine->set<"fps_limit">(fps);
         ImGui::End();
     };
 
@@ -90,13 +90,13 @@ void App::run ( ) {
 
             if (key == GLFW_KEY_I) {
                 auto state = app->graphics_engine->get_settings().gui_visible;
-                app->graphics_engine->set_gui_visible(!state);
+                app->graphics_engine->set<"gui_visible">(!state);
             }
             if (key == GLFW_KEY_Q) glfwSetWindowShouldClose(window, GLFW_TRUE);
 
         }
 
-        ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+        app->graphics_engine->ui_key_callback(window, key, scancode, action, mods);
 
     }; glfwSetKeyCallback(window, callback);
 
