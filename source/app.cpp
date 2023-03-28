@@ -9,11 +9,14 @@
 
 App::App (std::size_t width, std::size_t height, std::string_view title) {
 
-    window = create_window(width, height, title);
-    graphics_engine = new engine::Engine(window);
-    auto settings = graphics_engine->get_settings();
+    auto ec = glz::read_file(settings, "settings.json");
 
-    graphics_engine->ui_callback = [this, settings] {
+    window = create_window(settings.window_width, settings.window_height, title);
+
+    graphics_engine = new engine::Engine(window);
+    auto engine_settings = graphics_engine->get_settings();
+
+    graphics_engine->ui_callback = [this, engine_settings] {
         // ImGui::ShowDemoWindow();
         ImGuiIO& io = ImGui::GetIO();
 
@@ -33,8 +36,8 @@ App::App (std::size_t width, std::size_t height, std::string_view title) {
 
         std::ranges::rotate(frame_times, frame_times.begin() + 1);
 
-        static bool vsync = settings.vsync;
-        static int fps = settings.fps_limit;
+        static bool vsync = engine_settings.vsync;
+        static int fps = engine_settings.fps_limit;
         
         ImGui::Begin("Preferences", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
         if(ImGui::Checkbox("Verical Synchronization", &vsync))
@@ -46,17 +49,31 @@ App::App (std::size_t width, std::size_t height, std::string_view title) {
 
 }
 
+App::~App ( ) {
+
+    auto ec = glz::write_file(settings, "settings.json");
+
+    delete graphics_engine;
+    glfwTerminate();
+
+}
+
 GLFWwindow* App::create_window (std::size_t width, std::size_t height, std::string_view title) {
 
     logi("Creating window...");
 
     glfwInit();
 
-    glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
+    glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-    auto window = glfwCreateWindow(width, height, title.data(), nullptr, nullptr);
+    GLFWmonitor* monitor = nullptr;
+    if (settings.fullscreen) monitor = glfwGetPrimaryMonitor();
+
+    auto window = glfwCreateWindow(width, height, title.data(), monitor, nullptr);
+
+    glfwSetWindowSizeLimits(window, 400, 300, GLFW_DONT_CARE, GLFW_DONT_CARE);
 
     glfwSetWindowUserPointer(window, this);
 
@@ -65,12 +82,33 @@ GLFWwindow* App::create_window (std::size_t width, std::size_t height, std::stri
 
         app->graphics_engine->is_framebuffer_resized = true;
 
+        app->settings.window_height = height;
+        app->settings.window_width = width;
+
     }; glfwSetFramebufferSizeCallback(window, callback);
 
     if (window) logi("Successfully created {} window!", title);
     else loge("Failed to create {} window", title);
 
     return window;
+
+}
+
+void App::set_fullscreen (bool state) {
+
+    if (state) {
+
+        auto monitor = glfwGetPrimaryMonitor();
+
+        int x, y, width, height; 
+        glfwGetMonitorWorkarea(monitor, &x, &y, &width, &height);
+
+        glfwSetWindowMonitor(window, monitor, x, y, width, height, GLFW_DONT_CARE);
+
+    } 
+    else glfwSetWindowMonitor(window, nullptr, 0, 0, settings.window_width, settings.window_height, 0);
+
+    settings.fullscreen = state;
 
 }
 
@@ -87,6 +125,8 @@ void App::run ( ) {
         auto app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
 
         if (mods == GLFW_MOD_CONTROL && action == GLFW_PRESS) {
+
+            if (key == GLFW_KEY_F) app->set_fullscreen(!app->settings.fullscreen);
 
             if (key == GLFW_KEY_I) {
                 auto state = app->graphics_engine->get_settings().gui_visible;

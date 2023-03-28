@@ -34,7 +34,7 @@ namespace engine {
         device = std::make_shared<Device>(window);
         Device::set_static_instance(device);
 
-        auto ec = glz::read_file(settings, "settings.json");
+        auto ec = glz::read_file(settings, "engine_settings.json");
 
         dldi = vk::DispatchLoaderDynamic(device->get_instance(), vkGetInstanceProcAddr);
         if constexpr (debug) debug_messenger = make_debug_messenger(device->get_instance(), dldi);
@@ -73,7 +73,7 @@ namespace engine {
 
     Engine::~Engine ( ) {
 
-        auto ec = glz::write_file(settings, "settings.json");
+        auto ec = glz::write_file(settings, "engine_settings.json");
 
         device->get_handle().waitIdle();
 
