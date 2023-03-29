@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <cstddef>
 #include <string_view>
 
@@ -10,10 +11,12 @@
 struct Settings {
 
     bool fullscreen = false;
-    std::size_t window_width = 800;
-    std::size_t window_height = 600;
+    std::size_t width = 800;
+    std::size_t height = 600;
 
-    GLZ_LOCAL_META(Settings, fullscreen, window_width, window_height);
+    std::string selected_object = "Viking Room";
+
+    GLZ_LOCAL_META(Settings, width, height, selected_object);
 
 };
 
@@ -26,11 +29,11 @@ class App {
     GLFWwindow* create_window (std::size_t width, std::size_t height, std::string_view title);
     void set_fullscreen (bool state);
 
-    std::shared_ptr<engine::Object> object;
+    std::map<std::string_view, std::shared_ptr<engine::Object>> objects;
 
     public:
 
-    App (std::size_t width, std::size_t height, std::string_view title);
+    App (std::string_view title);
     ~App ( );
 
     void run();

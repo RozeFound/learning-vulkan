@@ -8,6 +8,15 @@
 
 namespace engine {
 
+    Model::Model (std::span<Vertex> vertices, std::span<index_type> indices) {
+
+        this->vertices.assign(vertices.begin(), vertices.end());
+        this->indices.assign(indices.begin(), indices.end());
+
+        update_buffers();
+
+    }
+
     Model::Model (std::string_view path) {
 
         tinyobj::attrib_t attrib;
@@ -43,6 +52,12 @@ namespace engine {
             indices.push_back(unique_vertices.at(vertex));
 
         }
+
+        update_buffers();
+
+    }
+
+    void Model::update_buffers ( ) {
 
         vertex_buffer = std::make_unique<Buffer>(vertices.size() * sizeof(Vertex), vk::BufferUsageFlagBits::eVertexBuffer, false, true);
         vertex_buffer->write(vertices.data());

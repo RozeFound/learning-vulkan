@@ -199,30 +199,21 @@ namespace engine {
 
         frame.commands.beginRenderPass(renderpass_info, vk::SubpassContents::eInline);
 
-        frame.commands.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
-        frame.commands.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, 1, &object->texture.get_descriptor_set(), 0, nullptr);
-
         auto viewport = vk::Viewport {
             .width = static_cast<float>(swapchain->get_extent().width),
             .height = static_cast<float>(swapchain->get_extent().height),       
             .minDepth = 0.f,
             .maxDepth = 1.f
         };
-
         frame.commands.setViewport(0, 1, &viewport);
 
-        auto scissor = vk::Rect2D {
-            .extent = swapchain->get_extent()
-        };
-
+        auto scissor = vk::Rect2D { .extent = swapchain->get_extent() };
         frame.commands.setScissor(0, 1, &scissor);
 
         prepare_frame(index);
 
-        auto offsets = std::array<vk::DeviceSize, 1> { }; 
-        frame.commands.bindVertexBuffers(0, 1, &object->model.get_vertex(), offsets.data());
-        frame.commands.bindIndexBuffer(object->model.get_index(), 0, vk::IndexType::eUint16);
-        frame.commands.drawIndexed(object->model.get_indices_count(), 1, 0, 0, 0);
+        object->bind(frame.commands, pipeline, pipeline_layout);
+        object->draw(frame.commands);
 
         if (is_imgui_enabled && settings.gui_visible) {
             UI::new_frame();

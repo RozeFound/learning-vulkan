@@ -55,6 +55,7 @@ namespace engine {
 
         ImGui::CreateContext();
         ImGui::StyleColorsDark();
+        ImGui::GetStyle().WindowRounding = 10.f;
 
         auto& io = ImGui::GetIO();
         io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset; 

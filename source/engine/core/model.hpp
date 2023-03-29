@@ -1,5 +1,6 @@
 #pragma once
 
+#include <span>
 #include <memory>
 #include <string_view>
 
@@ -20,8 +21,11 @@ namespace engine {
         std::unique_ptr<Buffer> vertex_buffer;
         std::unique_ptr<Buffer> index_buffer;
 
+        void update_buffers ( );
+
         public:
 
+        Model (std::span<Vertex> vertices, std::span<index_type> indices);
         Model (std::string_view path);
 
         constexpr const vk::Buffer& get_vertex ( ) const { return vertex_buffer->get_handle(); }

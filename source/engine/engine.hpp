@@ -18,17 +18,41 @@
 namespace engine {
 
     struct Object {
+
+        Object (std::string_view texture_path, std::string_view model_path)
+            : texture(texture_path), model(model_path) { };
+
+        Object (std::string_view texture_path, std::span<Vertex> vertices, std::span<uint16_t> indices)
+            : texture(texture_path), model(vertices, indices) { };
+
         Texture texture;
         Model model;
+
+        constexpr void bind (const vk::CommandBuffer& commands, const vk::Pipeline& pipeline, const vk::PipelineLayout& layout) {
+
+            auto offsets = std::array<vk::DeviceSize, 1> { }; 
+            commands.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+            commands.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, layout, 0, 1, &texture.get_descriptor_set(), 0, nullptr);
+            commands.bindVertexBuffers(0, 1, &model.get_vertex(), offsets.data());
+            commands.bindIndexBuffer(model.get_index(), 0, vk::IndexType::eUint16);
+
+        }
+
+        constexpr void draw (const vk::CommandBuffer& commands) {
+
+            commands.drawIndexed(model.get_indices_count(), 1, 0, 0, 0);
+
+        }
+
     };
 
     struct Settings {
 
         bool vsync = false;
-        int fps_limit = -1;
         bool gui_visible = false;
+        int fps_limit = -1;
 
-        GLZ_LOCAL_META(Settings, vsync, fps_limit, gui_visible);
+        GLZ_LOCAL_META(Settings, vsync, gui_visible, fps_limit);
     };
 
     class Engine {
@@ -86,7 +110,7 @@ namespace engine {
 
         }
 
-        constexpr Settings get_settings ( ) { return settings; }
+        constexpr Settings get_settings ( ) const { return settings; }
         void apply_settings ( );
 
         Engine(GLFWwindow* window);

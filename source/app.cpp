@@ -7,11 +7,11 @@
 
 #include "engine/utils/logging.hpp"
 
-App::App (std::size_t width, std::size_t height, std::string_view title) {
+App::App (std::string_view title) {
 
     auto ec = glz::read_file(settings, "settings.json");
 
-    window = create_window(settings.window_width, settings.window_height, title);
+    window = create_window(settings.width, settings.height, title);
 
     graphics_engine = new engine::Engine(window);
     auto engine_settings = graphics_engine->get_settings();
@@ -45,6 +45,12 @@ App::App (std::size_t width, std::size_t height, std::string_view title) {
         if(ImGui::InputInt("FPS Limit", &fps, 1, 10, ImGuiInputTextFlags_EnterReturnsTrue))
             graphics_engine->set<"fps_limit">(fps);
         ImGui::End();
+
+        ImGui::Begin("Available Objects", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        for(auto[key, value] : objects)
+            if(ImGui::RadioButton(key.data(), settings.selected_object == key))
+                settings.selected_object = key;
+        ImGui::End();
     };
 
 }
@@ -68,10 +74,7 @@ GLFWwindow* App::create_window (std::size_t width, std::size_t height, std::stri
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-    GLFWmonitor* monitor = nullptr;
-    if (settings.fullscreen) monitor = glfwGetPrimaryMonitor();
-
-    auto window = glfwCreateWindow(width, height, title.data(), monitor, nullptr);
+    auto window = glfwCreateWindow(width, height, title.data(), nullptr, nullptr);
 
     glfwSetWindowSizeLimits(window, 400, 300, GLFW_DONT_CARE, GLFW_DONT_CARE);
 
@@ -82,8 +85,10 @@ GLFWwindow* App::create_window (std::size_t width, std::size_t height, std::stri
 
         app->graphics_engine->is_framebuffer_resized = true;
 
-        app->settings.window_height = height;
-        app->settings.window_width = width;
+        if (!app->settings.fullscreen) {
+            app->settings.height = height;
+            app->settings.width = width;
+        }
 
     }; glfwSetFramebufferSizeCallback(window, callback);
 
@@ -106,7 +111,7 @@ void App::set_fullscreen (bool state) {
         glfwSetWindowMonitor(window, monitor, x, y, width, height, GLFW_DONT_CARE);
 
     } 
-    else glfwSetWindowMonitor(window, nullptr, 0, 0, settings.window_width, settings.window_height, 0);
+    else glfwSetWindowMonitor(window, nullptr, 0, 0, settings.width, settings.height, 0);
 
     settings.fullscreen = state;
 
@@ -114,12 +119,24 @@ void App::set_fullscreen (bool state) {
 
 void App::run ( ) {
 
-    auto viking_room = new engine::Object {
-        .texture = engine::Texture("textures/viking_room.png"),
-        .model = engine::Model("models/viking_room.obj")
+    auto vertices = std::vector<engine::Vertex> {
+        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+
+        {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+        {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+        {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+        {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
     };
 
-    object = std::shared_ptr<engine::Object>(viking_room);
+    auto indices = std::vector<uint16_t> { 0, 1, 2, 2, 3, 0,
+                                           4, 5, 6, 6, 7, 4 };
+
+
+    objects["Rimuru Tempest"] = std::make_shared<engine::Object>("textures/image.jpg", vertices, indices);
+    objects["Viking Room"] = std::make_shared<engine::Object>("textures/viking_room.png", "models/viking_room.obj");
 
     auto callback = [] (GLFWwindow* window, int key, int scancode, int action, int mods) {
         auto app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
@@ -143,7 +160,7 @@ void App::run ( ) {
     while (!glfwWindowShouldClose(window)) {
 
         glfwPollEvents();
-        graphics_engine->draw(object);
+        graphics_engine->draw(objects.at(settings.selected_object));
 
     }
 
