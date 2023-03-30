@@ -20,6 +20,10 @@ namespace engine {
                 && queue_flags & ~vk::QueueFlagBits::eGraphics) 
                 indices.transfer_family = i;
 
+            if (queue_flags & vk::QueueFlagBits::eCompute
+                && queue_flags & ~vk::QueueFlagBits::eGraphics) 
+                indices.compute_family = i;
+
             if(indices.is_complete()) break;
 
         }

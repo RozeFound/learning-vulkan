@@ -8,6 +8,17 @@
 
 namespace engine {
 
+    vk::PipelineInputAssemblyStateCreateInfo create_input_assembly_info (vk::PrimitiveTopology topology) {
+
+        auto input_assembly_info = vk::PipelineInputAssemblyStateCreateInfo {
+            .flags = vk::PipelineInputAssemblyStateCreateFlags(),
+            .topology = topology,
+            .primitiveRestartEnable = VK_FALSE
+        };
+
+        return input_assembly_info;
+    }
+
     vk::PipelineRasterizationStateCreateInfo create_rasterization_info (vk::CullModeFlags cull_mode) {
 
         auto rasterization_info = vk::PipelineRasterizationStateCreateInfo {
@@ -91,12 +102,6 @@ namespace engine {
             .pVertexAttributeDescriptions = attribute_descriptions.data()
         };
 
-        auto input_assembly_info = vk::PipelineInputAssemblyStateCreateInfo {
-            .flags = vk::PipelineInputAssemblyStateCreateFlags(),
-            .topology = vk::PrimitiveTopology::eTriangleList,
-            .primitiveRestartEnable = VK_FALSE
-        };
-
         auto dynamic_states = std::vector { 
             vk::DynamicState::eViewport, 
             vk::DynamicState::eScissor
@@ -135,7 +140,7 @@ namespace engine {
             .stageCount = to_u32(stages.size()),
             .pStages = stages.data(),
             .pVertexInputState = &vertex_input_info,
-            .pInputAssemblyState = &input_assembly_info,
+            .pInputAssemblyState = &create_info.input_assembly_info,
             .pTessellationState = nullptr,
             .pViewportState = &viewport_state_info,
             .pRasterizationState = &create_info.rasterization_info,
@@ -159,6 +164,28 @@ namespace engine {
             return nullptr;
         }
 
+    }
+
+    vk::Pipeline create_compute_pipeline (const vk::PipelineLayout& layout, std::string shader_path) {
+
+        auto shader = Shader(shader_path);
+        auto stages = shader.get_stage_info();
+
+        auto create_info = vk::ComputePipelineCreateInfo {
+            .flags = vk::PipelineCreateFlags(),
+            .stage = stages.at(0),
+            .layout = layout
+        };
+        
+        try {
+            auto result = Device::get()->get_handle().createComputePipeline(nullptr, create_info);
+            logi("Successfully created Graphics PipeLine");
+            return result.value;
+        } catch (vk::SystemError err) {
+            loge("Failed to create Graphics Pipeline");
+            return nullptr;
+        }
+        
     }
 
     vk::RenderPass create_render_pass ( ) {
@@ -303,14 +330,14 @@ namespace engine {
             }
         };
 
-        auto descriptor_set_info = vk::DescriptorSetLayoutCreateInfo {
+        auto create_info = vk::DescriptorSetLayoutCreateInfo {
             .flags = vk::DescriptorSetLayoutCreateFlags(),
             .bindingCount = to_u32(bindings.size()),
             .pBindings = bindings.data()
         };
 
         try {
-            auto result = Device::get()->get_handle().createDescriptorSetLayout(descriptor_set_info);
+            auto result = Device::get()->get_handle().createDescriptorSetLayout(create_info);
             logi("Created DescriptorSet Pipeline layout");
             return result;
         } catch (vk::SystemError error) {

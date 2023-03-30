@@ -1,6 +1,3 @@
-#include <limits>
-#include <vector>
-
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -52,7 +49,7 @@ namespace engine {
         auto push_constant_range = vk::PushConstantRange {
             .stageFlags = vk::ShaderStageFlagBits::eVertex,
             .offset = 0,
-            .size = sizeof(UniformBufferObject)
+            .size = sizeof(MVPMatrix)
         };
 
         auto sample_count = get_max_sample_count(device->get_gpu());
@@ -68,6 +65,7 @@ namespace engine {
         make_command_buffers();
 
         if (is_imgui_enabled) ui = std::make_unique<UI>(max_frames_in_flight, render_pass);
+        particle_system = std::make_unique<ParticleSystem>(max_frames_in_flight, render_pass);
 
     }
 
@@ -148,7 +146,7 @@ namespace engine {
 
     }
 
-    void Engine::prepare_frame (uint32_t index) {
+    void Engine::apply_camera_transformation (uint32_t index) {
 
         SCOPED_PERF_LOG;
 
@@ -161,21 +159,26 @@ namespace engine {
 
         auto aspect = static_cast<float>(swapchain->get_extent().width) / static_cast<float>(swapchain->get_extent().height);
 
-        auto ubo = UniformBufferObject {
-            .model = glm::rotate(glm::mat4(1.0f), delta / 3 * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
-            .view = glm::lookAt(glm::vec3(2.0f, 1.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.3f), glm::vec3(0.0f, 0.0f, 1.0f)),
-            .projection = glm::perspective(glm::radians(45.0f), aspect, .1f, 10.0f)
-        }; ubo.projection[1][1] *= -1;
+        auto model = glm::rotate(glm::mat4(1.0f), delta / 3 * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        auto view = glm::lookAt(glm::vec3(2.0f, 1.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.3f), glm::vec3(0.0f, 0.0f, 1.0f));
+        auto projection = glm::perspective(glm::radians(45.0f), aspect, .1f, 10.0f); projection[1][1] *= -1;
 
-        frame.commands.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(ubo), &ubo);
+        auto ubo = MVPMatrix { 
+            .model = model,
+            .view = view,
+            .projection = projection
+        };
+
+        frame.commands.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(MVPMatrix), &ubo);
 
     }
 
-    void Engine::record_draw_commands (uint32_t index, std::shared_ptr<Object> object) {
+    void Engine::record_draw_commands (uint32_t index, std::function<void()> draw_callback) {
 
         SCOPED_PERF_LOG;
 
         const auto& frame = swapchain->get_frames().at(index);
+        frame.commands.reset();
 
         try {
             frame.commands.begin(vk::CommandBufferBeginInfo());
@@ -210,17 +213,7 @@ namespace engine {
         auto scissor = vk::Rect2D { .extent = swapchain->get_extent() };
         frame.commands.setScissor(0, 1, &scissor);
 
-        prepare_frame(index);
-
-        object->bind(frame.commands, pipeline, pipeline_layout);
-        object->draw(frame.commands);
-
-        if (is_imgui_enabled && settings.gui_visible) {
-            UI::new_frame();
-            if (ui_callback) ui_callback();
-            ui->draw(frame.commands, index);
-            UI::end_frame();
-        }
+        draw_callback();
 
         frame.commands.endRenderPass();
 
@@ -249,19 +242,46 @@ namespace engine {
             is_settings_changed = false;
         }
 
-        constexpr auto timeout = std::numeric_limits<uint64_t>::max();
-        auto& frame = swapchain->get_frames().at(current_frame);
-        auto image_index = swapchain->acquire_image(current_frame);
-        frame.index = image_index;
+        particle_system->record_compute_commands(current_frame);
+        particle_system->compute_submit(current_frame);
 
-        frame.commands.reset();
-        record_draw_commands(current_frame, object);
+        auto& frame = swapchain->get_frames().at(current_frame);
+        frame.index = swapchain->acquire_image(current_frame);
+
+        record_draw_commands(current_frame, [&] {
+
+            apply_camera_transformation(current_frame);
+            object->bind(frame.commands, pipeline, pipeline_layout);
+            object->draw(frame.commands);
+
+            particle_system->draw(current_frame, frame.commands);
+
+            if (is_imgui_enabled && settings.gui_visible) {
+                UI::new_frame();
+                if (ui_callback) ui_callback();
+                ui->draw(current_frame, frame.commands);
+                UI::end_frame();
+            }
+
+        }); submit(current_frame);
         
-        vk::PipelineStageFlags wait_stages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
+        if (!swapchain->present_image(current_frame))
+            { current_frame = 0; return; }
+
+        current_frame = (current_frame + 1) % max_frames_in_flight;
+
+    }
+
+    void Engine::submit (uint32_t index) {
+
+        auto& frame = swapchain->get_frames().at(index);
+
+        vk::PipelineStageFlags wait_stages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eVertexInput};
+        auto wait_semaphores = std::array { frame.image_available.get(), particle_system->get_semaphore(index) };
 
         auto submit_info = vk::SubmitInfo {
-            .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &frame.image_available.get(),
+            .waitSemaphoreCount = to_u32(wait_semaphores.size()),
+            .pWaitSemaphores = wait_semaphores.data(),
             .pWaitDstStageMask = wait_stages,
             .commandBufferCount = 1,
             .pCommandBuffers = &frame.commands,
@@ -274,11 +294,6 @@ namespace engine {
         } catch (vk::SystemError err) {
             loge("Failed to submit draw command buffer");
         }
-
-        if (!swapchain->present_image(current_frame))
-            { current_frame = 0; return; }
-
-        current_frame = (current_frame + 1) % max_frames_in_flight;
 
     }
 

@@ -133,7 +133,7 @@ namespace engine {
 
     }
 
-    void UI::draw (const vk::CommandBuffer& command_buffer, uint32_t index) {
+    void UI::draw (uint32_t index, const vk::CommandBuffer& commands) {
 
         SCOPED_PERF_LOG;
 
@@ -152,12 +152,12 @@ namespace engine {
 
         if (!update_buffers(index)) return;
 
-        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
-        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, 1, &font_texture->get_descriptor_set(), 0, nullptr);
+        commands.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+        commands.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, 1, &font_texture->get_descriptor_set(), 0, nullptr);
 
         auto offsets = std::array<vk::DeviceSize, 1> { }; 
-        command_buffer.bindVertexBuffers(0, 1, &vertex_buffers.at(index)->get_handle(), offsets.data());
-        command_buffer.bindIndexBuffer(index_buffers.at(index)->get_handle(), 0, vk::IndexType::eUint16);
+        commands.bindVertexBuffers(0, 1, &vertex_buffers.at(index)->get_handle(), offsets.data());
+        commands.bindIndexBuffer(index_buffers.at(index)->get_handle(), 0, vk::IndexType::eUint16);
 
         auto io = ImGui::GetIO();
         auto draw_data = ImGui::GetDrawData();
@@ -166,7 +166,7 @@ namespace engine {
         auto translate = glm::vec2(-1.f - draw_data->DisplayPos.x * scale.x, -1.f - draw_data->DisplayPos.y * scale.y);
         auto constant = std::array { scale, translate };
 
-        command_buffer.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(glm::vec2) * 2, &constant);
+        commands.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(glm::vec2) * 2, &constant);
 
         auto command_lists = std::vector(draw_data->CmdLists, draw_data->CmdLists + draw_data->CmdListsCount);
 
@@ -183,8 +183,8 @@ namespace engine {
                     .extent = { static_cast<uint32_t>(cmd.ClipRect.z - cmd.ClipRect.x), static_cast<uint32_t>(cmd.ClipRect.w - cmd.ClipRect.y) }
                 };
 
-                command_buffer.setScissor(0, 1, &scissor);
-                command_buffer.drawIndexed(cmd.ElemCount, 1, cmd.IdxOffset + index_offset, cmd.VtxOffset + vertex_offset, 0);
+                commands.setScissor(0, 1, &scissor);
+                commands.drawIndexed(cmd.ElemCount, 1, cmd.IdxOffset + index_offset, cmd.VtxOffset + vertex_offset, 0);
 
             }
 

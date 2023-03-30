@@ -11,6 +11,7 @@
 #include "core/model.hpp"
 
 #include "ui_overlay.hpp"
+#include "particle_system.hpp"
 
 #include "utils/fps_limiter.hpp"
 #include "utils/utils.hpp"
@@ -70,6 +71,7 @@ namespace engine {
         std::shared_ptr<Device> device;
 
         std::unique_ptr<UI> ui;
+        std::unique_ptr<ParticleSystem> particle_system;
         std::unique_ptr<SwapChain> swapchain;
 
         vk::Pipeline pipeline;
@@ -80,12 +82,14 @@ namespace engine {
         vk::Queue queue;
         vk::CommandPool command_pool;
 
-        void remake_swapchain ( );
+        void setup_particles ( );
+
         void make_command_pool ( );
         void make_command_buffers ( );
         
-        void prepare_frame (uint32_t index);
-        void record_draw_commands (uint32_t index, std::shared_ptr<Object> object);
+        void apply_camera_transformation (uint32_t index);
+        void record_draw_commands (uint32_t index, std::function<void()> draw_callback);
+        void submit (uint32_t index);
 
     public:
 

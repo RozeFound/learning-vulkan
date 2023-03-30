@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <vector>
 #include <filesystem>
+#include <span>
 
 #include "../utils/logging.hpp"
 
@@ -10,22 +11,18 @@ namespace engine {
 
     class Shader {
 
-        vk::UniqueShaderModule vertex_module;
-        vk::UniqueShaderModule fragment_module;
+        std::vector<vk::PipelineShaderStageCreateInfo> stages;
+        std::vector<vk::ShaderModule> modules;
 
-        vk::PipelineShaderStageCreateInfo vertex_stage;
-        vk::PipelineShaderStageCreateInfo fragment_stage;
-
-        std::vector<std::byte> read (std::filesystem::path path);
-        vk::UniqueShaderModule create_module (std::vector<std::byte> code);
+        std::vector<std::byte> read_from_file (std::filesystem::path path);
+        void add_stage (vk::ShaderStageFlagBits stage, std::filesystem::path path);
 
         public:
 
-        Shader (std::filesystem::path path);
+        Shader (std::string path);
+        ~Shader ( );
 
-        constexpr const auto get_stage_info ( ) const {
-            return std::array { vertex_stage, fragment_stage };
-        }
+        constexpr const auto get_stage_info ( ) const { return stages; }
 
     };
 

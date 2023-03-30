@@ -63,6 +63,7 @@ namespace engine {
             return descriptions;
 
         }
+
     };
 
     struct ImVertex : ImDrawVert {
@@ -105,15 +106,78 @@ namespace engine {
             return descriptions;
 
         }
+
     };
 
-    struct UniformBufferObject {
+    struct Particle {
+
+        glm::vec2 position;
+        glm::vec2 velocity;
+        glm::vec4 color;
+
+        static auto get_binding_description ( ) {
+
+            auto description = vk::VertexInputBindingDescription {
+                .binding = 0,
+                .stride = sizeof(Particle),
+                .inputRate = vk::VertexInputRate::eVertex
+            };
+
+            return description;
+
+        }
+
+        static auto get_attribute_descriptions ( ) {
+
+            auto descriptions = std::vector {
+                vk::VertexInputAttributeDescription {
+                    .location = 0,
+                    .binding = 0,
+                    .format = vk::Format::eR32G32Sfloat,
+                    .offset = offsetof(Particle, position)
+                },
+                vk::VertexInputAttributeDescription {
+                    .location = 1,
+                    .binding = 0,
+                    .format = vk::Format::eR32G32B32A32Sfloat,
+                    .offset = offsetof(Particle, color)
+                }
+            };
+
+            return descriptions;
+
+        }
+
+        static auto get_descriptor_set_layout_bindings ( ) {
+
+            auto bindings = std::array {
+                vk::DescriptorSetLayoutBinding {
+                    .binding = 0,
+                    .descriptorType = vk::DescriptorType::eStorageBuffer,
+                    .descriptorCount = 1,
+                    .stageFlags = vk::ShaderStageFlagBits::eCompute
+                },
+                vk::DescriptorSetLayoutBinding {
+                    .binding =1,
+                    .descriptorType = vk::DescriptorType::eStorageBuffer,
+                    .descriptorCount = 1,
+                    .stageFlags = vk::ShaderStageFlagBits::eCompute
+                }
+            };
+
+            return bindings;
+
+        }
+
+    };
+
+    struct MVPMatrix {
         glm::mat4x4 model;
         glm::mat4x4 view;
         glm::mat4x4 projection;
     };
 
-}
+};
 
 template <> struct std::hash<engine::Vertex> {
     std::size_t operator() (const engine::Vertex& vertex) const noexcept {

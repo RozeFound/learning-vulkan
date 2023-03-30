@@ -40,7 +40,7 @@ namespace engine {
         static ScopedTimer add_perf_counter (std::source_location = std::source_location::current());
 
         static void new_frame();
-        void draw (const vk::CommandBuffer&, uint32_t index);
+        void draw (uint32_t index, const vk::CommandBuffer& commands);
         static void end_frame();
 
     };
