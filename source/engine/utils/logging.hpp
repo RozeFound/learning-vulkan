@@ -1,6 +1,8 @@
 #pragma once
 
 #include <source_location>
+#include <functional>
+#include <chrono>
 
 #include <fmt/core.h>
 
@@ -28,6 +30,22 @@ namespace engine {
     void log_device_properties (vk::PhysicalDevice& physical_device);
     void log_instance_properties ( );
 
+    class ScopedTimer {
+
+        using hrc = std::chrono::high_resolution_clock;
+
+        hrc::time_point start;
+        std::function<void(double)> callback;
+
+        public:
+
+        ScopedTimer (decltype(callback) callback) : callback(callback) { start = hrc::now(); }
+        ~ScopedTimer ( ) { callback((hrc::now() - start).count() * 0.000001); }
+
+    };
+    
+    ScopedTimer add_perf_counter (std::source_location = std::source_location::current());
+
 }
 
 #if defined(DEBUG) 
@@ -45,3 +63,4 @@ namespace engine {
 #endif
 
 #define loge(FS...) engine::log(fmt::format(FS), engine::log_level::error)
+#define SCOPED_PERF_LOG auto timer##__LINE__ = engine::add_perf_counter()

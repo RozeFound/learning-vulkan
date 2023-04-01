@@ -1,3 +1,4 @@
+#include <map>
 #include <iostream>
 #include <filesystem>
 
@@ -133,6 +134,16 @@ namespace engine {
         for (const auto& layer : layers) {
             logv("\t{}", layer.layerName);
         }
+
+    }
+
+    std::map<std::string_view, double> perf_counters = { };
+
+    ScopedTimer add_perf_counter (std::source_location location) {
+
+        return ScopedTimer([location] (double duration) {
+            perf_counters[location.function_name()] = duration;
+        });
 
     }
 

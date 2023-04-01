@@ -158,16 +158,13 @@ namespace engine {
         float delta = std::chrono::duration<float, std::chrono::seconds::period>(start - current).count();
 
         auto aspect = static_cast<float>(swapchain->get_extent().width) / static_cast<float>(swapchain->get_extent().height);
-
-        auto model = glm::rotate(glm::mat4(1.0f), delta / 3 * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        auto view = glm::lookAt(glm::vec3(2.0f, 1.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.3f), glm::vec3(0.0f, 0.0f, 1.0f));
         auto projection = glm::perspective(glm::radians(45.0f), aspect, .1f, 10.0f); projection[1][1] *= -1;
 
         auto ubo = MVPMatrix { 
-            .model = model,
-            .view = view,
+            .model = glm::rotate(glm::mat4(1.0f), delta / 3 * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
+            .view = glm::lookAt(glm::vec3(2.0f, 1.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.3f), glm::vec3(0.0f, 0.0f, 1.0f)),
             .projection = projection
-        };
+        }; 
 
         frame.commands.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(MVPMatrix), &ubo);
 
@@ -250,11 +247,11 @@ namespace engine {
 
         record_draw_commands(current_frame, [&] {
 
+            particle_system->draw(current_frame, frame.commands);
+
             apply_camera_transformation(current_frame);
             object->bind(frame.commands, pipeline, pipeline_layout);
             object->draw(frame.commands);
-
-            particle_system->draw(current_frame, frame.commands);
 
             if (is_imgui_enabled && settings.gui_visible) {
                 UI::new_frame();

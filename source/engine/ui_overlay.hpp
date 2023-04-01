@@ -37,8 +37,6 @@ namespace engine {
             : image_count(image_count), render_pass(render_pass) { create_handle(); }
         ~UI ( );
 
-        static ScopedTimer add_perf_counter (std::source_location = std::source_location::current());
-
         static void new_frame();
         void draw (uint32_t index, const vk::CommandBuffer& commands);
         static void end_frame();
@@ -46,5 +44,3 @@ namespace engine {
     };
 
 }
-
-#define SCOPED_PERF_LOG auto timer__LINE__ = engine::UI::add_perf_counter()

@@ -7,7 +7,6 @@
 
 #include "core/pipeline.hpp"
 
-#include "utils/utils.hpp"
 #include "utils/logging.hpp"
 #include "utils/primitives.hpp"
 
@@ -121,19 +120,9 @@ namespace engine {
 
     }
 
-    static std::map<std::string_view, double> perf_counters = { };
-
-    ScopedTimer UI::add_perf_counter (std::source_location location) {
-
-        auto callback = [location] (double duration) {
-            perf_counters[location.function_name()] = duration;
-        };
-
-        return ScopedTimer(callback);
-
-    }
-
     void UI::draw (uint32_t index, const vk::CommandBuffer& commands) {
+
+        extern std::map<std::string_view, double> perf_counters;
 
         SCOPED_PERF_LOG;
 

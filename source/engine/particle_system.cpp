@@ -35,6 +35,11 @@ namespace engine {
             .attribute_descriptions = Particle::get_attribute_descriptions(),
             .input_assembly_info = create_input_assembly_info(vk::PrimitiveTopology::ePointList),
             .multisampling_info = create_multisampling_info(sample_count, true),
+            .depth_stencil_info = create_depth_stencil_info(false, false),
+            .color_blend_attachment = create_color_blend_attachment(true,
+                { vk::BlendFactor::eSrcAlpha,  vk::BlendFactor::eOneMinusSrcAlpha }, vk::BlendOp::eAdd,
+                { vk::BlendFactor::eOneMinusSrcAlpha,  vk::BlendFactor::eDstAlpha }, vk::BlendOp::eAdd
+            ),
             .layout = graphics_layout,
             .render_pass = render_pass,
             .shader_path = "shaders/g_particles"
@@ -74,7 +79,7 @@ namespace engine {
 
         for (auto& particle : particles) {
 
-            float r = 0.25f * std::sqrt(rand_float());
+            float r = 0.01f * std::sqrt(rand_float());
             float theta = rand_float() * 2 * std::numbers::pi;
             float x = r * std::cos(theta) * extent.height / extent.width;
             float y = r * std::sin(theta);
@@ -280,7 +285,7 @@ namespace engine {
 
         
         auto offsets = std::array<vk::DeviceSize, 1> { }; 
-        //commands.bindPipeline(vk::PipelineBindPoint::eGraphics, graphics_pipeline);
+        commands.bindPipeline(vk::PipelineBindPoint::eGraphics, graphics_pipeline);
         commands.bindVertexBuffers(0, 1, &buffers.at(index)->get_handle(), offsets.data());
         commands.draw(particles_count, 1, 0, 0);
 
