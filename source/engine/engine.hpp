@@ -102,10 +102,10 @@ namespace engine {
 
         template <fixed_string key> constexpr void set (const auto value) {
 
-            if constexpr (key == fixed_string("vsync")) settings.vsync = value;
-            if constexpr (key == fixed_string("fps_limit")) settings.fps_limit = value;
+            if constexpr (key == "vsync"_fs) settings.vsync = value;
+            if constexpr (key == "fps_limit"_fs) settings.fps_limit = value;
 
-            if constexpr (key == fixed_string("gui_visible")) { 
+            if constexpr (key == "gui_visible"_fs) { 
                 if (is_imgui_enabled) settings.gui_visible = value;
                 return;
             }

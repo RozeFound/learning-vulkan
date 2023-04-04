@@ -18,7 +18,7 @@ CPMAddPackage(
 
 find_package(Vulkan)
 if (NOT VULKAN_FOUND)
-    CPMAddPackage("gh:khronosgroup/vulkan-hpp@1.3.244")
+    CPMAddPackage("gh:khronosgroup/vulkan-hpp@1.3.246")
 endif()
 
 CPMAddPackage(

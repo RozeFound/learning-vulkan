@@ -59,8 +59,9 @@ namespace engine {
         auto& io = ImGui::GetIO();
         io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset; 
 
-        ImGui_ImplGlfw_InitForVulkan(const_cast<GLFWwindow*>(device->get_window()), true);
+        ImGui_ImplGlfw_InitForVulkan(const_cast<GLFWwindow*>(device->get_window()), false);
         create_font_texture();
+        register_callbacks();
 
         vertex_buffers.resize(image_count);
         index_buffers.resize(image_count);
@@ -82,6 +83,16 @@ namespace engine {
 
         auto data = std::vector<std::byte>(reinterpret_cast<std::byte*>(pixels), reinterpret_cast<std::byte*>(pixels) + size);
         font_texture = std::make_unique<Texture>(width, height, data);
+
+    }
+
+    void UI::register_callbacks ( ) {
+
+        auto window = const_cast<GLFWwindow*>(device->get_window());
+
+        glfwSetMouseButtonCallback(window, ImGui_ImplGlfw_MouseButtonCallback);
+        glfwSetScrollCallback(window, ImGui_ImplGlfw_ScrollCallback);
+        glfwSetCharCallback(window, ImGui_ImplGlfw_CharCallback);
 
     }
 

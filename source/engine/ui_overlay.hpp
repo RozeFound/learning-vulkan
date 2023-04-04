@@ -28,6 +28,7 @@ namespace engine {
 
         void create_handle ( );
         void create_font_texture ( );
+        void register_callbacks ( );
 
         bool update_buffers (uint32_t index);
 

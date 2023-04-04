@@ -10,14 +10,18 @@ namespace engine {
             
         char buffer[size] { };
 
-        constexpr fixed_string (const char* string) {
-            for (std::size_t i = 0; i != size; i++) buffer[i] = string[i];
+        constexpr fixed_string (const char (&input)[size+1]) {
+            for (std::size_t i = 0; i != size; i++) buffer[i] = input[i];
         }
         constexpr operator const char* ( ) const { return buffer; }
         constexpr bool operator<=> (const fixed_string&) const = default;
     };
 
-    template <std::size_t size> fixed_string (const char (&)[size]) -> fixed_string<size>;
+    template <std::size_t size> fixed_string (const char (&)[size]) -> fixed_string<size-1>;
+
+    template <typename T, T...chars> constexpr auto operator""_fs ( ) {
+        return fixed_string<sizeof...(chars)>({chars...});
+    };
 
     struct QueueFamilyIndices {
         
